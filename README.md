@@ -2,6 +2,8 @@
 
 Boulder is designed to be a multi-purpose systems programming language that resembles rust and kotlin, and will be primarily designed for bare-metal applications to be run directly on hardware, and for embedded software. Boulder is designed to have no object oriented features, instead staying similar to C with just functions, structs, and enums. Structs will be able to have accessor methods by using the 'self' keyword in impl statements like rust, which will be basically the same as having a function take a reference to a struct in c. The standard library will be written in a way to allow for use on complete baremetal, and will include basic support for general hardware. Each part of the standard library will be able to be turned off through compile arguments. Everything down to the heap allocator will be togglable for the most extreme usecases. Need to write software on such limited hardware that you are considering writing assembly yourself? boulder is the perfect fit for you.
 
+Boulder uses the `.rock` extension for files
+
 ### Implemented:
 ✅ Input Stream\
 ✅ Lexer\
