@@ -27,7 +27,7 @@ impl Error {
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.core_msg.is_some() {
-            write!(f, "{}error{}: {}{}",
+            write!(f, "{}error{}: {}: {}",
                    Color::BrightRed, Color::BrightWhite, self.core_msg.as_ref().unwrap().clone(), self.msg)
         } else {
             write!(f, "{}error{}: {}",

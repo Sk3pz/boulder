@@ -21,7 +21,7 @@ fn next_ident(input: &mut InputReader) -> String {
 }
 
 /// returns the next numeric literal
-fn next_numeric(input: &mut InputReader) -> Result<String, Error> {
+fn next_numeric(input: &mut InputReader, can_be_decimal: bool) -> Result<String, Error> {
     let start = input.pos(); // used for error handling
     let mut num = String::new(); // the number that will be returned
     let mut decimal = false; // if the number is a decimal
@@ -30,18 +30,25 @@ fn next_numeric(input: &mut InputReader) -> Result<String, Error> {
             input.consume();
             num.push(c); // add the number to the string
         } else if c == '.' { // if the character is a decimal
+            if !can_be_decimal {
+                return Err(Error::new(
+                    Some("Decimal literals are not allowed in this context"),
+                    "Hexadecimal and Binary literals can not contain decimals.",
+                    input.pos(),
+                ));
+            }
             // if there is no next character,
             let next_peek = input.peek_at(1);
             if next_peek.is_none() {
                 return Err(Error::new(
-                    Some("Unexpected token at EOF"), format!(": Found {}", c), start));
+                    Some("Unexpected token at EOF"), format!("Found {}", c), start));
             }
             // handle decimal numbers
             let next = next_peek.unwrap();
             if next.is_numeric() {
                 if decimal {
                     return Err(Error::new(
-                        Some("Extra Decimal Point"), format!(": The number literal is already a decimal!"), start));
+                        Some("Extra Decimal Point"), format!("The number literal is already a decimal!"), start));
                 }
                 input.consume(); // consume the .
                 num.push(c);
@@ -116,8 +123,22 @@ fn next_token(input: &mut InputReader) -> Result<Token, Error> {
             input.consume();
             Ok(Token::new(TokenType::Comma, start, input.pos()))
         }
+        '@' => {
+            input.consume();
+            Ok(Token::new(TokenType::Interrupt, start, input.pos()))
+        }
+        '?' => { // ?]
+            input.consume();
+            Ok(Token::new(TokenType::Panic, start, input.pos()))
+        }
         ':' => {
             input.consume();
+            if let Some(next) = input.peek() {
+                if next == ':' {
+                    input.consume();
+                    return Ok(Token::new(TokenType::DoubleColon, start, input.pos()));
+                }
+            }
             Ok(Token::new(TokenType::Colon, start, input.pos()))
         }
         '.' => {
@@ -137,7 +158,7 @@ fn next_token(input: &mut InputReader) -> Result<Token, Error> {
                     if input.peek().is_none() {
                         return Err(Error::new(
                             Some("String literal with no close"),
-                            format!(": Reached EOF before finding closing '\"'"), start));
+                            format!("Reached EOF before finding closing '\"'"), start));
                     }
                 }
             }
@@ -148,20 +169,20 @@ fn next_token(input: &mut InputReader) -> Result<Token, Error> {
             if let None = input.peek() {
                 return Err(Error::new(
                     Some("Character literal with no close"),
-                    format!(": Reached EOF before finding closing '\''"), start));
+                    format!("Reached EOF before finding closing '\''"), start));
             }
             let charlit = input.consume().unwrap();
             // todo(eric): handle escape characters
             if let None = input.peek() {
                 return Err(Error::new(
                     Some("Character literal with no close"),
-                    format!(": Reached EOF before finding closing '\''"), start));
+                    format!("Reached EOF before finding closing '\''"), start));
             }
             let next = input.consume().unwrap();
             if next != '\'' {
                 return Err(Error::new(
                     Some("Character literal with no close"),
-                    format!(": Found '{}' instead of closing '\''", next), start));
+                    format!("Found '{}' instead of closing '\''", next), start));
             }
             return Ok(Token::new_lit(TokenType::CharLit, charlit.to_string(), start, input.pos()));
         }
@@ -264,9 +285,25 @@ fn next_token(input: &mut InputReader) -> Result<Token, Error> {
             Ok(Token::new_op(lex_op(input, Operator::Not, Operator::Neq),
                              start, input.pos()))
         }
-        '?' => { // ?]
-            input.consume();
-            Ok(Token::new_op(Operator::Question, start, input.pos()))
+        // binary and hex literals
+        '0' => {
+            if let Some(next) = input.peek_at(1) {
+                if next == 'x' {
+                    input.consume(); // consume the '0'
+                    input.consume(); // consume the 'x'
+                    // get the number
+                    let num = next_numeric(input, false)?;
+                    return Ok(Token::new_lit(TokenType::HexLit, num.to_string(), start, input.pos()));
+                }
+                if next == 'b' {
+                    input.consume(); // consume the '0'
+                    input.consume(); // consume the 'b'
+                    // get the number
+                    let num = next_numeric(input, false)?;
+                    return Ok(Token::new_lit(TokenType::BinLit, num.to_string(), start, input.pos()));
+                }
+            }
+            return next_token(input);
         }
         // identifiers and numbers
         _ => {
@@ -284,17 +321,19 @@ fn next_token(input: &mut InputReader) -> Result<Token, Error> {
                     "return" => Ok(Token::new(TokenType::Return, start, input.pos())),
                     "match" => Ok(Token::new(TokenType::Match, start, input.pos())),
                     "struct" => Ok(Token::new(TokenType::Struct, start, input.pos())),
+                    "use" => Ok(Token::new(TokenType::Use, start, input.pos())),
+                    "macro" => Ok(Token::new(TokenType::Macro, start, input.pos())),
                     "true" => Ok(Token::new(TokenType::BoolTrue, start, input.pos())),
                     "false" => Ok(Token::new(TokenType::BoolFalse, start, input.pos())),
                     _ => Ok(Token::new_ident(ident, start, input.pos()))
                 }
             }
             return if next.is_numeric() { // handle numeric literals
-                Ok(Token::new_lit(TokenType::NumberLit, next_numeric(input)?, start, input.pos()))
+                Ok(Token::new_lit(TokenType::NumberLit, next_numeric(input, true)?, start, input.pos()))
             } else {
                 Err(Error::new(
                     Some("Unexpected character"),
-                    format!(": Found '{}'", next), start))
+                    format!("Found '{}'", next), start))
             }
         }
     }

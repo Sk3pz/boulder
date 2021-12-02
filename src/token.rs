@@ -9,17 +9,23 @@ pub enum TokenType {
     Comma,
     Dot,
     Colon,
+    DoubleColon,
     OpenParen,
     CloseParen,
     OpenBrace,
     CloseBrace,
     OpenBracket,
     CloseBracket,
+    Interrupt,
+    Panic,
+
     Ident,
 
     StringLit,
     CharLit,
     NumberLit,
+    HexLit,
+    BinLit,
 
     Operator,
 
@@ -34,6 +40,8 @@ pub enum TokenType {
     Return,    // "return"
     Match,     // "match"
     Struct,    // "struct"
+    Use,       // "use"
+    Macro,     // "macro"
     BoolTrue,  // "true"
     BoolFalse, // "false"
 }
@@ -70,6 +78,13 @@ impl Display for TokenType {
             TokenType::CloseBrace => write!(f, "CloseBrace"),
             TokenType::OpenBracket => write!(f, "OpenBracket"),
             TokenType::CloseBracket => write!(f, "CloseBracket"),
+            TokenType::DoubleColon => write!(f, "DoubleColon"),
+            TokenType::Interrupt => write!(f, "Interrupt"),
+            TokenType::Panic => write!(f, "Panic"),
+            TokenType::Use => write!(f, "Use"),
+            TokenType::Macro => write!(f, "Macro"),
+            TokenType::HexLit => write!(f, "HexLit"),
+            TokenType::BinLit => write!(f, "BinLit"),
         }
     }
 }

@@ -37,7 +37,6 @@ pub enum Operator {
     Move,      // ->
     Inc,       // ++
     Dec,       // --
-    Question,  // ?
     Right,     // =>
 }
 
