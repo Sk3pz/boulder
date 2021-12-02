@@ -1,0 +1,10 @@
+// Prints a string to stdout
+fn print(msg: string) {
+    // some wacky print stuff which will be written for the std library later goes here.
+}
+
+fn start() { // defines the entry point
+  let msg: string = "Hello, world!\n"; // defines a string in ascii format
+
+  print(msg); // calls the print function passing msg as a parameter.
+}
