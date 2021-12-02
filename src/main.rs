@@ -250,6 +250,10 @@ fn main() {
 
     let code = read_file(&input_file);
 
+    if verbose {
+        println!("Lexing the code...");
+    }
+
     let mut input_reader = InputReader::new(Some(input_file_in.clone()), &code);
 
     let (mut tokens, lex_time) = time_taken(|| lex(&mut input_reader));
@@ -258,13 +262,16 @@ fn main() {
         return;
     }
 
-    // println!("Lexed tokens in {}ms. Tokens:\n{}", time, tokens.unwrap());
     let lex_display_time = if lex_time > 500.0 {
         format!("{}s", round(lex_time / 1000.0, 3))
     } else {
         format!("{}ms", lex_time)
     };
-    println!("Lexing done. Lexed tokens in {}.", lex_display_time);
+    if verbose {
+        println!("Lexing done. Took {}.", lex_display_time);
+        println!("Tokens:\n{}", tokens.unwrap());
+        println!("Parsing tokens...");
+    }
 
     flush_styles();
 }

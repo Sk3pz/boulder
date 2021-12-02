@@ -78,7 +78,6 @@ impl Display for Operator {
             Operator::Move => write!(f, "->"),
             Operator::Inc => write!(f, "++"),
             Operator::Dec => write!(f, "--"),
-            Operator::Question => write!(f, "?"),
             Operator::Right => write!(f, "=>"),
         }
     }
