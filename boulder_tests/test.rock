@@ -1,10 +1,30 @@
-// Prints a string to stdout
-fn print(msg: string) {
-    // some wacky print stuff which will be written for the std library later goes here.
-}
+use std::os::println
 
-fn start() { // defines the entry point
-  let msg: string = "Hello, world!\n"; // defines a string in ascii format
+macro BINARY_NUMBER_FAIL = 0x04
 
-  print(msg); // calls the print function passing msg as a parameter.
+fn start() {
+  println("This will print out on any supported OS!")
+  // call a system interrupt (This isnt meant do do anything specific, just an example of syntax and features.)
+  @0x00
+  if true {
+    @0x01
+  } else {
+    @0x02
+  }
+
+  // binary numbers
+  let binary_number = 0b010010101100
+  let mask = 0b000000001111
+  let result = binary_number & mask
+
+  if result != 0b000000001100 {
+    // ? is for panic. if the program reaches this, it will dump all used memory and stop.
+    // The message will:
+    //  if logging is enabled, log to a file
+    //  if printing is possible, print to the screen,
+    //  Attempt to return it.
+    // the panic function will take anything as a parameter.
+    ? BINARY_NUMBER_FAIL
+  }
+
 }

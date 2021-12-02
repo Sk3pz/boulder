@@ -14,36 +14,36 @@ Boulder uses the `.rock` extension for files
 ❌ Compiling to Machine Code\
 ❌ Sediment (Package manager for Boulder libraries and programs)
 
-Syntax example of Boulder: 
+Syntax example of Boulder (currently using rust syntax because of the similarity for syntax highlighting): 
 ```rust
-use std::os::println;
+use std::os::println
 
-macro BINARY_NUMBER_FAIL = 0x04;
+macro BINARY_NUMBER_FAIL = 0x04
 
 fn start() {
-  println("This will print out on any supported OS!");
-  // call a system interrupt (This isnt meant do do anything specific, just an example of syntax and features.)
-  @0x00;
-  if true {
-    @0x01;
-  } else {
-    @0x02;
-  }
-  
-  // binary numbers
-  let binary_number = 0b010010101100;
-  let mask = 0b000000001111;
-  let result = binary_number & mask;
-  
-  if result != 0b000000001100 {
-    // ? is for panic. if the program reaches this, it will dump all used memory and stop.
-    // The message will:
-    //  if logging is enabled, log to a file
-    //  if printing is possible, print to the screen,
-    //  Attempt to return it.
-    // the panic function will take anything as a parameter.
-    ? BINARY_NUMBER_FAIL;
-  }
-  
+    println("This will print out on any supported OS!")
+    // call a system interrupt (This isnt meant do do anything specific, just an example of syntax and features.)
+    @0x00
+    if true {
+        @0x01
+    } else {
+        @0x02
+    }
+
+    // binary numbers
+    let binary_number = 0b010010101100
+    let mask = 0b000000001111
+    let result = binary_number & mask
+
+    if result != 0b000000001100 {
+        // ? is for panic. if the program reaches this, it will dump all used memory and stop.
+        // The message will:
+        //  if logging is enabled, log to a file
+        //  if printing is possible, print to the screen,
+        //  Attempt to return it.
+        // the panic function will take anything as a parameter.
+        ? BINARY_NUMBER_FAIL
+    }
+
 }
 ```
