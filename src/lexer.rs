@@ -32,7 +32,7 @@ fn next_numeric(input: &mut InputReader, can_be_decimal: bool) -> Result<String,
         } else if c == '.' { // if the character is a decimal
             if !can_be_decimal {
                 return Err(Error::new(
-                    Some("Decimal literals are not allowed in this context"),
+                    "Decimal literals are not allowed in this context",
                     "Hexadecimal and Binary literals can not contain decimals.",
                     input.pos(),
                 ));
@@ -41,15 +41,16 @@ fn next_numeric(input: &mut InputReader, can_be_decimal: bool) -> Result<String,
             let next_peek = input.peek_at(1);
             if next_peek.is_none() {
                 return Err(Error::new(
-                    Some("Unexpected token at EOF"), format!("Found {}", c), start));
+                    "Unexpected token at EOF", format!("Found {}", c), start));
             }
             // handle decimal numbers
             let next = next_peek.unwrap();
             if next.is_numeric() {
                 if decimal {
                     return Err(Error::new(
-                        Some("Extra Decimal Point"), format!("The number literal is already a decimal!"), start));
+                        "Extra Decimal Point", format!("The number literal is already a decimal!"), start));
                 }
+                decimal = true;
                 input.consume(); // consume the .
                 num.push(c);
                 continue; // continue until the number is complete
@@ -82,7 +83,7 @@ fn lex_op(input: &mut InputReader, norm: Operator, assign: Operator) -> Operator
     lex_op_other(input, assign, '=').unwrap_or(norm)
 }
 
-fn next_token(input: &mut InputReader) -> Result<Token, Error> {
+pub fn next_token(input: &mut InputReader) -> Result<Token, Error> {
     let next = input.peek().unwrap();
     let start = input.pos();
     match next {
@@ -127,7 +128,7 @@ fn next_token(input: &mut InputReader) -> Result<Token, Error> {
             input.consume();
             Ok(Token::new(TokenType::Interrupt, start, input.pos()))
         }
-        '?' => { // ?]
+        '?' => { // ?
             input.consume();
             Ok(Token::new(TokenType::Panic, start, input.pos()))
         }
@@ -143,9 +144,16 @@ fn next_token(input: &mut InputReader) -> Result<Token, Error> {
         }
         '.' => {
             input.consume();
+            if let Some(next) = input.peek() {
+                if next == '.' {
+                    input.consume();
+                    return Ok(Token::new(TokenType::Range, start, input.pos()));
+                }
+            }
             Ok(Token::new(TokenType::Dot, start, input.pos()))
         }
         '"' => { // process string literals
+            // todo(eric): handle escape sequences and string formatting
             input.consume();
             let mut strlit = String::new();
             while let Some(c) = input.peek() {
@@ -157,7 +165,7 @@ fn next_token(input: &mut InputReader) -> Result<Token, Error> {
                     strlit.push(c);
                     if input.peek().is_none() {
                         return Err(Error::new(
-                            Some("String literal with no close"),
+                            "String literal with no close",
                             format!("Reached EOF before finding closing '\"'"), start));
                     }
                 }
@@ -168,20 +176,20 @@ fn next_token(input: &mut InputReader) -> Result<Token, Error> {
             input.consume();
             if let None = input.peek() {
                 return Err(Error::new(
-                    Some("Character literal with no close"),
+                    "Character literal with no close",
                     format!("Reached EOF before finding closing '\''"), start));
             }
             let charlit = input.consume().unwrap();
             // todo(eric): handle escape characters
             if let None = input.peek() {
                 return Err(Error::new(
-                    Some("Character literal with no close"),
+                    "Character literal with no close",
                     format!("Reached EOF before finding closing '\''"), start));
             }
             let next = input.consume().unwrap();
             if next != '\'' {
                 return Err(Error::new(
-                    Some("Character literal with no close"),
+                    "Character literal with no close",
                     format!("Found '{}' instead of closing '\''", next), start));
             }
             return Ok(Token::new_lit(TokenType::CharLit, charlit.to_string(), start, input.pos()));
@@ -213,6 +221,38 @@ fn next_token(input: &mut InputReader) -> Result<Token, Error> {
         }
         '/' => { // /, /=
             input.consume();
+            // disreguard comments
+            if let Some(next) = input.peek() {
+                if next == '/' {
+                    input.consume();
+                    while let Some(c) = input.peek() {
+                        if c == '\n' {
+                            input.consume();
+                            break;
+                        } else {
+                            input.consume();
+                        }
+                    }
+                    return Ok(Token::new(TokenType::Whitespace, start, input.pos()));
+                }
+                if next == '*' {
+                    input.consume();
+                    while let Some(c) = input.peek() {
+                        if c == '*' {
+                            input.consume();
+                            if let Some(next) = input.peek() {
+                                if next == '/' {
+                                    input.consume();
+                                    break;
+                                }
+                            }
+                        } else {
+                            input.consume();
+                        }
+                    }
+                    return Ok(Token::new(TokenType::Whitespace, start, input.pos()));
+                }
+            }
             Ok(Token::new_op(lex_op(input, Operator::Div, Operator::DivAssign),
                              start, input.pos()))
         }
@@ -303,7 +343,7 @@ fn next_token(input: &mut InputReader) -> Result<Token, Error> {
                     return Ok(Token::new_lit(TokenType::BinLit, num.to_string(), start, input.pos()));
                 }
             }
-            return next_token(input);
+            return Ok(Token::new_lit(TokenType::NumberLit, next_numeric(input, true)?, start, input.pos()));
         }
         // identifiers and numbers
         _ => {
@@ -332,7 +372,7 @@ fn next_token(input: &mut InputReader) -> Result<Token, Error> {
                 Ok(Token::new_lit(TokenType::NumberLit, next_numeric(input, true)?, start, input.pos()))
             } else {
                 Err(Error::new(
-                    Some("Unexpected character"),
+                    "Unexpected character",
                     format!("Found '{}'", next), start))
             }
         }
@@ -343,53 +383,6 @@ pub fn lex(input: &mut InputReader) -> Result<TokenList, Error> {
     let mut tokens: Vec<Token> = Vec::new();
 
     while let Some(c) = input.peek() {
-        // Remove comments from the input. This could be done with a comment token, but I feel that would
-        // reduce the efficiency of the lexer as well as the parser when it will just be
-        // discarded anyway.
-        if c == '/' { // if its a /, it could be the start of a // or a /*
-            // get the next character to see if its a / or a *
-            let next_peek = input.peek_at(1);
-            if next_peek.is_none() { // if there is no next character, then why is there a / at the EOF?
-                return Err(Error::new(
-                    Some("Unexpected token"), format!(": {}", c), input.pos()));
-            }
-            // unwrap the next character to be processed
-            let next = next_peek.unwrap();
-            // check to see if it is a / or a *
-            if next == '/' {
-                input.consume(); // remove the first /
-                input.consume(); // remove the second /
-                // ignore all characters until a newline is found
-                while let Some(c) = input.peek() {
-                    if c == '\n' { // if it is the end of the line, then break out of the loop as the comment is done
-                        input.consume();
-                        break;
-                    }
-                    // otherwise remove the current character from the input.
-                    input.consume();
-                }
-            }
-            if next == '*' {
-                input.consume(); // remove the /
-                input.consume(); // remove the *
-                while let Some(c) = input.peek() {
-                    // check if the next character is a * to see if it is the end of the comment
-                    if c == '*' {
-                        input.consume(); // remove the *
-                        // check to see if the next character is a /
-                        if let Some(next) = input.peek() {
-                            if next == '/' {
-                                input.consume(); // remove the /
-                                break; // break out of the loop as the comment is done
-                            }
-                        }
-                    }
-                    // otherwise, the lexer is still in the multiline comment, and so the character
-                    // should be deleted.
-                    input.consume();
-                }
-            }
-        }
         // Process the next token
         tokens.push(next_token(input)?); // push the next token into the list
     }

@@ -6,18 +6,19 @@ use crate::operator::Operator;
 pub enum TokenType {
     NOP, EOF,
     Whitespace,
-    Comma,
-    Dot,
-    Colon,
-    DoubleColon,
+    Comma, // ,
+    Dot, // .
+    Range, // ..
+    Colon, // :
+    DoubleColon, // ::
     OpenParen,
     CloseParen,
     OpenBrace,
     CloseBrace,
     OpenBracket,
     CloseBracket,
-    Interrupt,
-    Panic,
+    Interrupt, // @
+    Panic, // ?
 
     Ident,
 
@@ -71,6 +72,7 @@ impl Display for TokenType {
             TokenType::BoolTrue => write!(f, "BoolTrue"),
             TokenType::BoolFalse => write!(f, "BoolFalse"),
             TokenType::Dot => write!(f, "Dot"),
+            TokenType::Range => write!(f, "Range"),
             TokenType::Colon => write!(f, "Colon"),
             TokenType::OpenParen => write!(f, "OpenParen"),
             TokenType::CloseParen => write!(f, "CloseParen"),

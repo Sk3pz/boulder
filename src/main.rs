@@ -6,6 +6,8 @@ pub mod lexer;
 pub mod token;
 pub mod operator;
 pub mod error;
+mod parser;
+pub mod expression;
 
 use std::{env, fs};
 use std::fmt::Display;
@@ -13,7 +15,7 @@ use std::fs::File;
 use std::path::Path;
 use better_term::{Color, flush_styles};
 use crate::argument_parser::{Argument, parse_args};
-use crate::error::Error;
+use crate::error::{Error, print_error};
 use crate::input_reader::InputReader;
 use crate::lexer::lex;
 use crate::token::TokenList;
@@ -256,9 +258,9 @@ fn main() {
 
     let mut input_reader = InputReader::new(Some(input_file_in.clone()), &code);
 
-    let (mut tokens, lex_time) = time_taken(|| lex(&mut input_reader));
+    let (tokens, lex_time) = time_taken(|| lex(&mut input_reader));
     if tokens.is_err() {
-        println!("Lexer error: {}", tokens.unwrap_err());
+        print_error(tokens.unwrap_err(), code);
         return;
     }
 
