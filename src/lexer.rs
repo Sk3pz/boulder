@@ -1,3 +1,4 @@
+use crate::CodePos;
 use crate::error::Error;
 use crate::input_reader::InputReader;
 use crate::operator::Operator;
@@ -20,8 +21,39 @@ fn next_ident(input: &mut InputReader) -> String {
     ident
 }
 
+/// returns the next hex literal
+fn lex_hex_lit(input: &mut InputReader) -> Result<Token, Error> {
+    let start = input.pos();
+    input.consume(); // remove the 0
+    input.consume(); // remove the x
+    let mut hex_lit = String::new();
+    while let Some(c) = input.peek() {
+        if !(c.is_numeric() || (c >= (97 as char) && c <= (102 as char)) || (c >= (65 as char) && c <= (70 as char))) {
+            break;
+        }
+        input.consume();
+        hex_lit.push(c);
+    }
+    Ok(Token::new_lit(TokenType::HexLit, hex_lit, start, input.pos()))
+}
+
+fn lex_bin_lit(input: &mut InputReader) -> Result<Token, Error> {
+    let start = input.pos();
+    input.consume(); // remove the 0
+    input.consume(); // remove the b
+    let mut bin_lit = String::new();
+    while let Some(c) = input.peek() {
+        if !(c == '1' || c == '0') {
+            break;
+        }
+        input.consume();
+        bin_lit.push(c);
+    }
+    Ok(Token::new_lit(TokenType::BinLit, bin_lit, start, input.pos()))
+}
+
 /// returns the next numeric literal
-fn next_numeric(input: &mut InputReader, can_be_decimal: bool) -> Result<String, Error> {
+fn next_numeric(input: &mut InputReader) -> Result<String, Error> {
     let start = input.pos(); // used for error handling
     let mut num = String::new(); // the number that will be returned
     let mut decimal = false; // if the number is a decimal
@@ -30,13 +62,6 @@ fn next_numeric(input: &mut InputReader, can_be_decimal: bool) -> Result<String,
             input.consume();
             num.push(c); // add the number to the string
         } else if c == '.' { // if the character is a decimal
-            if !can_be_decimal {
-                return Err(Error::new(
-                    "Decimal literals are not allowed in this context",
-                    "Hexadecimal and Binary literals can not contain decimals.",
-                    input.pos(),
-                ));
-            }
             // if there is no next character,
             let next_peek = input.peek_at(1);
             if next_peek.is_none() {
@@ -329,21 +354,15 @@ pub fn next_token(input: &mut InputReader) -> Result<Token, Error> {
         '0' => {
             if let Some(next) = input.peek_at(1) {
                 if next == 'x' {
-                    input.consume(); // consume the '0'
-                    input.consume(); // consume the 'x'
                     // get the number
-                    let num = next_numeric(input, false)?;
-                    return Ok(Token::new_lit(TokenType::HexLit, num.to_string(), start, input.pos()));
+                    return lex_hex_lit(input);
                 }
                 if next == 'b' {
-                    input.consume(); // consume the '0'
-                    input.consume(); // consume the 'b'
                     // get the number
-                    let num = next_numeric(input, false)?;
-                    return Ok(Token::new_lit(TokenType::BinLit, num.to_string(), start, input.pos()));
+                    return lex_bin_lit(input);
                 }
             }
-            return Ok(Token::new_lit(TokenType::NumberLit, next_numeric(input, true)?, start, input.pos()));
+            return Ok(Token::new_lit(TokenType::NumberLit, next_numeric(input)?, start, input.pos()));
         }
         // identifiers and numbers
         _ => {
@@ -369,7 +388,7 @@ pub fn next_token(input: &mut InputReader) -> Result<Token, Error> {
                 }
             }
             return if next.is_numeric() { // handle numeric literals
-                Ok(Token::new_lit(TokenType::NumberLit, next_numeric(input, true)?, start, input.pos()))
+                Ok(Token::new_lit(TokenType::NumberLit, next_numeric(input)?, start, input.pos()))
             } else {
                 Err(Error::new(
                     "Unexpected character",

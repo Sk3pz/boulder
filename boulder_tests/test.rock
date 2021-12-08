@@ -22,7 +22,7 @@ fn fn_test(param1: u8 = 0, param2: bool = true) -> u8 {
 
 fn start() {
   println("This will print out on any supported OS!")
-  // call a system interrupt (This isnt meant do do anything specific, just an example of syntax and features.)
+  // call a system interrupt (This isn't meant do do anything specific, just an example of syntax and features.)
   @0x00
   if true {
     @0x01

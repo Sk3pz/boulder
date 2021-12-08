@@ -17,7 +17,7 @@ impl Error {
             pos
         }
     }
-    pub fn new_singular<S: Into<String>, S2: Into<String>>(msg: S2, pos: CodePos) -> Self {
+    pub fn new_singular<S: Into<String>>(msg: S, pos: CodePos) -> Self {
         Self {
             core_msg: None,
             msg: msg.into(),
