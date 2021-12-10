@@ -4,9 +4,9 @@ version = 3
 
 [[package]]
 name = "better_term"
-version = "1.0.3"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75f59221a72a66a211b6d217c2e21f6af660d1cbd187ed9e9f4d249730424aea"
+checksum = "44b34d99d7b4d3e42008a16d0de429e9ce662353277321897e50e3549de12c29"
 
 [[package]]
 name = "boulder"

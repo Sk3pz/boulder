@@ -2,42 +2,42 @@ use std::fmt::Display;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Operator {
-    Add,       // +
-    Sub,       // -
-    Mul,       // *
-    Div,       // /
-    Mod,       // %
-    Xor,       // ^
-    And,       // &
-    Or,        // |
-    Assign,    // =
-    Eq,        // ==
-    Neq,       // !=
-    Lt,        // <
-    Lte,       // <=
-    Gt,        // >
-    Gte,       // >=
-    BoolAnd,   // &&
-    BoolOr,    // ||
-    Not,       // !
-    MulAssign, // *=
-    DivAssign, // /=
-    ModAssign, // %=
-    AddAssign, // +=
-    SubAssign, // -=
-    XorAssign, // ^=
-    AndAssign, // &=
-    OrAssign,  // |=
-    Shl,       // <<
-    Shr,       // >>
-    ShlAssign, // <<=
-    ShrAssign, // >>=
-    Shlu,      // <<<
-    Shru,      // >>>
-    Move,      // ->
-    Inc,       // ++
-    Dec,       // --
-    Right,     // =>
+    Add,       // +   (binary)
+    Sub,       // -   (binary & unary)
+    Mul,       // *   (binary)
+    Div,       // /   (binary)
+    Mod,       // %   (binary)
+    Xor,       // ^   (binary)
+    And,       // &   (binary)
+    Or,        // |   (binary)
+    Assign,    // =   (binary)
+    Eq,        // ==  (binary)
+    Neq,       // !=  (binary)
+    Lt,        // <   (binary)
+    Lte,       // <=  (binary)
+    Gt,        // >   (binary)
+    Gte,       // >=  (binary)
+    BoolAnd,   // &&  (binary)
+    BoolOr,    // ||  (binary)
+    Not,       // !   (unary)
+    MulAssign, // *=  (binary)
+    DivAssign, // /=  (binary)
+    ModAssign, // %=  (binary)
+    AddAssign, // +=  (binary)
+    SubAssign, // -=  (binary)
+    XorAssign, // ^=  (binary)
+    AndAssign, // &=  (binary)
+    OrAssign,  // |=  (binary)
+    Shl,       // <<  (binary)
+    Shr,       // >>  (binary)
+    ShlAssign, // <<= (binary)
+    ShrAssign, // >>= (binary)
+    Shlu,      // <<< (binary)
+    Shru,      // >>> (binary)
+    Move,      // ->  (binary)
+    Inc,       // ++  (unary)
+    Dec,       // --  (unary)
+    Right,     // =>  (binary)
 }
 
 impl Display for Operator {

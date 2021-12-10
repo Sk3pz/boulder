@@ -18,6 +18,7 @@ use crate::argument_parser::{Argument, parse_args};
 use crate::error::{Error, print_error};
 use crate::input_reader::InputReader;
 use crate::lexer::lex;
+use crate::parser::parse;
 use crate::token::TokenList;
 
 fn round(value: f64, place: usize) -> f64 {
@@ -108,11 +109,12 @@ pub fn validate_file(file: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn validate_boulder_file(file: &str) -> Result<(), String> {
-    let path = Path::new(&file);
-    validate_file(file)?;
+pub fn validate_boulder_file<S: Into<String>>(file: S) -> Result<(), String> {
+    let f = file.into();
+    let path = Path::new(&f);
+    validate_file(&f)?;
     if !path.extension().unwrap().to_str().unwrap().eq("rock") {
-        return Err(format!("File {} is not a boulder file", file));
+        return Err(format!("File {} is not a boulder file", f));
     }
     Ok(())
 }
@@ -143,7 +145,7 @@ fn print_version() {
 pub fn read_file<P: AsRef<Path>>(path: P) -> String {
     let input_file_result = fs::read_to_string(&path.as_ref());
     if input_file_result.is_err() {
-        println!("{}Failed to read {}: {}", Color::Red, path.as_ref().display(), input_file_result.unwrap_err());
+        println!("{}Failed to read {}: {}", Color::Red, path.as_ref().to_str().unwrap(), input_file_result.unwrap_err());
         return String::new();
     }
     input_file_result.unwrap()
@@ -258,21 +260,38 @@ fn main() {
 
     let mut input_reader = InputReader::new(Some(input_file_in.clone()), &code);
 
-    let (tokens, lex_time) = time_taken(|| lex(&mut input_reader));
+    let (mut tokens, lex_time) = time_taken(|| lex(&mut input_reader));
     if tokens.is_err() {
-        print_error(tokens.unwrap_err(), code);
+        print_error(tokens.unwrap_err());
         return;
     }
 
-    let lex_display_time = if lex_time > 500.0 {
-        format!("{}s", round(lex_time / 1000.0, 3))
-    } else {
-        format!("{}ms", lex_time)
-    };
     if verbose {
+        let lex_display_time = if lex_time > 500.0 {
+            format!("{}s", round(lex_time / 1000.0, 3))
+        } else {
+            format!("{}ms", lex_time)
+        };
         println!("Lexing done. Took {}.", lex_display_time);
-        println!("Tokens:\n{}", tokens.unwrap());
+        //println!("Tokens:\n{}", tokens.unwrap());
         println!("Parsing tokens...");
+    }
+
+    let (ast, parse_time) = time_taken(|| parse(&mut tokens.as_mut().unwrap()));
+    if ast.is_err() {
+        print_error(ast.unwrap_err());
+        return;
+    }
+
+    if verbose {
+        let parse_display_time = if parse_time > 500.0 {
+            format!("{}s", round(parse_time / 1000.0, 3))
+        } else {
+            format!("{}ms", parse_time)
+        };
+        println!("Parsing done. Took {}.", parse_display_time);
+        println!("AST:\n{}", ast.unwrap());
+        println!("Generating code...");
     }
 
     flush_styles();

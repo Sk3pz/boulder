@@ -4,6 +4,7 @@ use crate::operator::Operator;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
     Program(Vec<Expression>), // program - contains the expressions of the program
+    Use(Vec<Expression>), // file - contains the expressions of the file
     Block(Vec<Expression>), // block - holds a list of contained expressions
     Fn(Box<Expression>, Vec<Expression>, Box<Expression>, Box<Expression>), // fn - holds the identifier, the parameters, the return type, and the body
     // parameters are Declaration expressions, where if there is an assignment, its the default value
@@ -30,6 +31,8 @@ pub enum Expression {
     Identifier(String), // identifier - holds the name of the identifier
     StringLiteral(String), // string literal - holds the string
     NumberLiteral(String), // number literal - holds the number todo(eric): expand this to different number types
+    BinaryLiteral(String), // binary literal - holds the binary literal
+    HexLiteral(String), // hexadecimal literal - holds the binary literal
     CharLiteral(char), // char literal - holds the character
     BoolLiteral(bool), // boolean literal - holds the boolean
     NOP, // nop - holds nothing
@@ -38,15 +41,21 @@ pub enum Expression {
 
 impl Expression {
     pub fn display(&self, depth: usize) -> String {
-        let indent = "  ".repeat(depth - 1);
-        let output = format!("");
-       match self {
+        let indent = "  ".repeat(depth);
+        match self {
             Expression::Program(exprs) => {
                 let mut output = format!("{indent}- Program:\n");
                 for ex in exprs {
                     output += &ex.display(depth + 1).as_str();
                 }
                 output
+            }
+            Expression::Use(exprs) => {
+               let mut output = format!("{indent}- Import:\n");
+               for ex in exprs {
+                   output += &ex.display(depth + 1).as_str();
+               }
+               output
             }
             Expression::Block(exprs) => {
                 let mut output = format!("{indent}- Block:\n");
@@ -64,7 +73,7 @@ impl Expression {
                         param_out += &p.display(depth + 3).as_str();
                     }
                 }
-                format!("{indent}- Function:\n{indent}  - Ident:\n{}{}{indent}  - Returns:\n{}\n{indent}  - Body:\n{}",
+                format!("{indent}- Function:\n{indent}  - Ident:\n{}{}{indent}  - Returns:\n{}{indent}  - Body:\n{}",
                         ident.display(depth + 2),
                         param_out,
                         ret.display(depth + 2),
@@ -124,17 +133,17 @@ impl Expression {
             }
             Expression::Declaration(ident, type_ident,
                                     value) => {
-                format!("{indent}- Declaration:\n{indent}  - Ident:\n{}{}{indent}  - Value:\n{}",
+                format!("{indent}- Declaration:\n{indent}  - Ident:\n{}{}{}",
                         ident.display(depth + 2),
                         if type_ident.is_some() {
                             format!("{indent}  - Type:\n{}", type_ident.as_ref().unwrap().display(depth + 2))
                         } else {
-                            format!("")
+                            format!("{indent}  - Type: Unspecified\n")
                         },
                         if value.is_some() {
                             format!("{indent}  - Value:\n{}", value.as_ref().unwrap().display(depth + 2))
                         } else {
-                            format!("")
+                            format!("{indent}  - Value: None\n")
                         })
             }
             Expression::Assignment(ident, value) => {
@@ -167,6 +176,8 @@ impl Expression {
             Expression::Identifier(s) => return format!("{indent}- Identifier: {}\n", s),
             Expression::StringLiteral(s) => return format!("{indent}- StringLiteral: \"{}\"\n", s),
             Expression::NumberLiteral(s) => return format!("{indent}- NumberLiteral: {}\n", s),
+            Expression::BinaryLiteral(s) => return format!("{indent}- BinaryLiteral: {}\n", s),
+            Expression::HexLiteral(s) => return format!("{indent}- HexLiteral: {}\n", s),
             Expression::CharLiteral(c) => return format!("{indent}- CharLiteral: {}\n", c),
             Expression::BoolLiteral(b) => return format!("{indent}- BoolLiteral: {}\n", b),
             Expression::Void => return format!("{indent}- Void\n"),

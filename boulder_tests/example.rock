@@ -3,37 +3,44 @@ use "print.rock"
 
 // an example of parameters and defaults
 fn fn_test(param1: u8 = 0, param2: bool = true) -> u8 {
-    // if param1 == 0 {
-    //     if param2 {
-    //         return 1
-    //     } else {
-    //         return 2
-    //     }
-    // } else {
-    //     if param2 {
-    //         return 3
-    //     } else {
-    //         return 4
-    //     }
-    // }
+    if param1 == 0 {
+        if param2 {
+            return 1
+        } else {
+            return 2
+        }
+    } else {
+        if param2 {
+            return 3
+        } else {
+            return 4
+        }
+    }
 }
 
 fn start() {
   println("This will print out on any supported OS!")
+  // call a system interrupt (This isn't meant do do anything specific, just an example of syntax and features.)
+  @0x00
+  if true {
+    @0x01
+  } else {
+    @0x02
+  }
 
   // binary numbers
   let binary_number = 0b010010101100
   let mask = 0b000000001111
   let result = binary_number & mask
 
-  // if result != 0b000000001100 {
+  if result != 0b000000001100 {
     // ? is for panic. if the program reaches this, it will dump all used memory and stop.
     // The message will:
     //  if logging is enabled, log to a file
     //  if printing is possible, print to the screen,
     //  Attempt to return it.
     // the panic function will take anything as a parameter.
-    // ? "Binary numbers are not working!"
-  // }
+    ? "Binary numbers are not working!"
+  }
 
 }

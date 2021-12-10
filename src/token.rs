@@ -1,5 +1,5 @@
 use std::fmt::{Display, write};
-use crate::CodePos;
+use crate::{CodePos, Error};
 use crate::operator::Operator;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,7 +42,7 @@ pub enum TokenType {
     Match,     // "match"
     Struct,    // "struct"
     Use,       // "use"
-    Macro,     // "macro"
+    Macro,     // "macro" (currently unused)
     BoolTrue,  // "true"
     BoolFalse, // "false"
 }
@@ -218,6 +218,89 @@ impl TokenList {
     /// Returns the length of the token list.
     pub fn len(&self) -> usize {
         self.tokens.len()
+    }
+
+    /// removes whitespace until the next non-whitespace token is found
+    pub fn optional_whitespace(&mut self) {
+        while let Some(t) = self.peek() {
+            if t.token_type == TokenType::Whitespace {
+                self.consume();
+            } else {
+                break;
+            }
+        }
+    }
+
+    pub fn expect_whitespace(&mut self) -> Result<Token, Error> {
+        let token = self.consume()
+            .ok_or_else(|| Error::new("Unexpected EOF", "expected Whitespace", self.eof()))?;
+        if token.token_type != TokenType::Whitespace {
+            return Err(Error::new("Unexpected token", format!("expected Whitespace"), token.start));
+        }
+        self.optional_whitespace(); // remove following whitespace
+        Ok(token)
+    }
+
+    /// expects a specific token type and consumes it.
+    pub fn expect(&mut self, token_type: TokenType) -> Result<Token, Error> {
+        if token_type == TokenType::Whitespace {
+            return self.expect_whitespace(); // if its expecting whitespace, return the proper funciton
+        } else {
+            self.optional_whitespace(); // remove leading whitespace
+        }
+        let token = self.consume()
+            .ok_or_else(|| Error::new("Unexpected EOF", format!("expected {}", token_type), self.eof()))?;
+        if token.token_type != token_type {
+            return Err(Error::new("Unexpected token", format!("expected {}", token_type), token.start));
+        }
+        Ok(token)
+    }
+
+    pub fn optional_expect(&mut self, token_type: TokenType) -> Result<Option<Token>, Error> {
+        if token_type != TokenType::Whitespace {
+            self.optional_whitespace(); // remove leading whitespace
+        } else { // optionally expecting whitespace (this is 100% over-engineered, but its cool)
+            return if let Some(t) = self.peek() {
+                if t.token_type == TokenType::Whitespace {
+                    self.consume();
+                    self.optional_whitespace(); // remove following whitespace
+                    Ok(Some(t))
+                } else {
+                    Ok(None) // no whitespace found
+                }
+            } else {
+                Ok(None) // EOF
+            }
+        }
+
+        // if there is no next token, return none as it can't be the expected token
+        if self.peek().is_none() {
+            return Ok(None);
+        }
+
+        // if it is the expected token type, return the token, otherwise return none
+        if self.peek().unwrap().token_type == token_type {
+            Ok(Some(self.consume().unwrap())) // return it
+        } else {
+            Ok(None) // return none as the token was not the expected type
+        }
+    }
+
+    pub fn expect_op(&mut self, op: Operator) -> Result<Operator, Error> {
+        let token = self.expect(TokenType::Operator)?;
+        Ok(token.op.unwrap())
+    }
+
+    pub fn optional_op(&mut self, op: Operator) -> Result<Option<Operator>, Error> {
+        if let Some(t) = self.optional_expect(TokenType::Operator)? {
+            Ok(Some(t.op.unwrap()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn next_is(&self, tt: TokenType) -> bool {
+        self.peek().map(|t| t.token_type == tt).unwrap_or(false)
     }
 }
 

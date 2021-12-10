@@ -381,7 +381,6 @@ pub fn next_token(input: &mut InputReader) -> Result<Token, Error> {
                     "match" => Ok(Token::new(TokenType::Match, start, input.pos())),
                     "struct" => Ok(Token::new(TokenType::Struct, start, input.pos())),
                     "use" => Ok(Token::new(TokenType::Use, start, input.pos())),
-                    "macro" => Ok(Token::new(TokenType::Macro, start, input.pos())),
                     "true" => Ok(Token::new(TokenType::BoolTrue, start, input.pos())),
                     "false" => Ok(Token::new(TokenType::BoolFalse, start, input.pos())),
                     _ => Ok(Token::new_ident(ident, start, input.pos()))

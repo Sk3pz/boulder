@@ -1,104 +1,22 @@
+use std::path::Path;
 use crate::expression::Expression;
-use crate::{Error, TokenList};
+use crate::{Error, InputReader, lex, read_file, time_taken, TokenList, validate_boulder_file};
 use crate::operator::Operator;
 use crate::token::{Token, TokenType};
-
-/// Removes whitespace tokens until the next non-whitespace token or EOF
-fn optional_whitespace(tokens: &mut TokenList) {
-    while let Some(token) = tokens.peek() { // Peek at the next token
-        if token.token_type == TokenType::Whitespace { // If it's whitespace
-            tokens.consume(); // Consume it
-        } else {
-            break; // Otherwise, break as the next token is not whitespace
-        }
-    }
-}
-
-/// Expects an operator token of a specific operator type and consumes it
-fn expect_op(tokens: &mut TokenList, expected: Operator) -> Result<Operator, Error> {
-    optional_whitespace(tokens); // Remove leading whitespace tokens
-    // get the next token
-    let next = tokens.peek();
-    // make sure the token is not the eof
-    if next.is_none() {
-        return Err(Error::new("Unexpected End Of File", format!("Expected {}", expected), tokens.eof()));
-    }
-    // check the next token is an operator
-    let next_token = next.unwrap();
-    if next_token.token_type != TokenType::Operator {
-        // if not return an error
-        return Err(Error::new(format!("Expected {}", expected), format!("But found {}", next_token), next_token.start));
-    }
-    // return the Operator type
-    let op_type = next_token.op.unwrap();
-    if op_type != expected {
-        return Err(Error::new(format!("Expected {}", expected), format!("But found {}", next_token), next_token.start));
-    }
-    tokens.consume();
-    Ok(op_type)
-}
-
-fn optional_op(tokens: &mut TokenList, expected: Operator) -> Result<Option<Operator>, Error> {
-    optional_whitespace(tokens); // remove leading whitespace tokens
-    // get the next token and make sure its not the eof
-    let next = tokens.peek();
-    if next.is_none() {
-        return Err(Error::new("Unexpected End Of File", format!("Expected {}", expected), tokens.eof()));
-    }
-    // check the next token is an operator
-    let next_token = next.unwrap();
-    if next_token.token_type == TokenType::Operator {
-        tokens.consume();
-        let op_type = next_token.op.unwrap();
-        // if it is the expected operator return it
-        if op_type == expected {
-            return Ok(Some(op_type));
-        }
-    }
-    // otherwise return None
-    Ok(None)
-}
-
-fn optional_expect(tokens: &mut TokenList, expected: TokenType) -> Result<Option<Token>, Error> {
-    optional_whitespace(tokens); // remove leading whitespace tokens
-    let next = tokens.peek();
-    if next.is_none() {
-        // if the next token is the eof return an error
-        return Err(Error::new("Unexpected End Of File", format!("Expected {}", expected), tokens.eof()));
-    }
-    // if the next token is the expected token return it
-    let next_token = next.unwrap();
-    if next_token.token_type == expected {
-        tokens.consume();
-        return Ok(Some(next_token));
-    }
-    // otherwise return None
-    Ok(None)
-}
-
-fn expect(tokens: &mut TokenList, expected: TokenType) -> Result<Token, Error> {
-    optional_whitespace(tokens); // remove leading whitespace tokens
-    let next = tokens.peek();
-    // if the next token is the eof return an error
-    if next.is_none() {
-        return Err(Error::new("Unexpected End Of File", format!("Expected {}", expected), tokens.eof()));
-    }
-    // if the next token is the expected token return it, otherwise return an error
-    let next_token = next.unwrap();
-    if next_token.token_type != expected {
-        return Err(Error::new(format!("Expected {}", expected), format!("But found {}", next_token), next_token.start));
-    }
-    Ok(tokens.consume().unwrap())
-}
 
 fn parse_block(tokens: &mut TokenList) -> Result<Expression, Error> {
     tokens.consume(); // remove the '{' token
     let mut expressions = Vec::new();
     // while the next token is not the '}' token, parse the next expression
     while let Some(token) = tokens.peek() {
-        if token.token_type == TokenType::CloseBrace {
+        // if its a whitespace token, continue on to the next token
+        if token.token_type == TokenType::Whitespace {
             tokens.consume();
-            break;
+            continue;
+        }
+        if token.token_type == TokenType::CloseBracket { // if its a '}' token
+            tokens.consume(); // remove it
+            break; // break out of the loop
         }
         expressions.push(parse_statement(tokens)?);
     }
@@ -108,15 +26,15 @@ fn parse_block(tokens: &mut TokenList) -> Result<Expression, Error> {
 fn define_params(tokens: &mut TokenList) -> Result<Vec<Expression>, Error> {
     // the vector to hold the parameters
     let mut params = Vec::new();
-    expect(tokens, TokenType::OpenParen)?; // expect an open paren
+    tokens.expect(TokenType::OpenParen)?; // expect an open paren
     // while there is a next identifier, parse the next parameter
-    while let Some(ident) = optional_expect(tokens, TokenType::Ident)? {
+    while let Some(ident) = tokens.optional_expect(TokenType::Ident)? {
         // expect a type identifier
-        expect(tokens, TokenType::Colon)?;
+        tokens.expect(TokenType::Colon)?;
         // the type
-        let param_type = expect(tokens, TokenType::Ident)?;
+        let param_type = tokens.expect(TokenType::Ident)?;
         // if there is a default value, push the full declaration as a parameter
-        if optional_op(tokens, Operator::Eq)?.is_some() {
+        if tokens.optional_op(Operator::Assign)?.is_some() {
             let default_value = parse_statement(tokens)?;
             params.push(Expression::Declaration(Box::new(Expression::Identifier(ident.value.unwrap())),
                                                 Some(Box::new(Expression::Identifier(param_type.value.unwrap()))),
@@ -128,29 +46,29 @@ fn define_params(tokens: &mut TokenList) -> Result<Vec<Expression>, Error> {
                                                 None));
         }
         // if the next token is not a comma, break out of the loop
-        if optional_expect(tokens, TokenType::Comma)?.is_none() {
+        if tokens.optional_expect(TokenType::Comma)?.is_none() {
             break;
         }
     }
     // expect the closing paren
-    expect(tokens, TokenType::CloseParen)?;
+    tokens.expect(TokenType::CloseParen)?;
     // return the closing parameters
     Ok(params)
 }
 
 fn parse_fn(tokens: &mut TokenList) -> Result<Expression, Error> {
     tokens.consume(); // remove fn
-    expect(tokens, TokenType::Whitespace)?; // separator between fn and name
-    let name = expect(tokens, TokenType::Ident)?; // the identifier of the function
+    tokens.expect_whitespace()?; // separator between fn and name
+    let name = tokens.expect(TokenType::Ident)?; // the identifier of the function
     let params = define_params(tokens)?;
     // optional return type
     let mut rt = Expression::Void;
-    if optional_op(tokens, Operator::Move)?.is_some() {
-        let return_type = expect(tokens, TokenType::Ident)?;
+    if tokens.optional_op(Operator::Move)?.is_some() {
+        let return_type = tokens.expect(TokenType::Ident)?;
         rt = Expression::Identifier(return_type.value.unwrap());
     }
     // parse the body of the expression
-    expect(tokens, TokenType::OpenBracket)?;
+    tokens.expect(TokenType::OpenBracket)?;
     let body = parse_block(tokens)?;
     Ok(Expression::Fn(Box::new(Expression::Identifier(name.value.unwrap())),
                             params,
@@ -160,17 +78,17 @@ fn parse_fn(tokens: &mut TokenList) -> Result<Expression, Error> {
 
 fn parse_declaration(tokens: &mut TokenList) -> Result<Expression, Error> {
     tokens.consume(); // remove the let token
-    expect(tokens, TokenType::Whitespace)?; // separator between let and name
-    let ident = expect(tokens, TokenType::Ident)?; // the identifier of the declaration
+    tokens.expect_whitespace()?; // separator between let and name
+    let ident = tokens.expect(TokenType::Ident)?; // the identifier of the declaration
     // if there is a type, parse it
     let mut def_type: Option<Box<Expression>> = None;
-    if optional_expect(tokens, TokenType::Colon)?.is_some() {
+    if tokens.optional_expect(TokenType::Colon)?.is_some() {
         def_type = Some(Box::new(
-            Expression::Identifier(expect(tokens, TokenType::Ident)?.value.unwrap())));
+            Expression::Identifier(tokens.expect(TokenType::Ident)?.value.unwrap())));
     }
     // if there is a default value, parse it
     let mut def_value: Option<Box<Expression>> = None;
-    if optional_op(tokens, Operator::Eq)?.is_some() {
+    if tokens.optional_op(Operator::Eq)?.is_some() {
         def_value = Some(Box::new(parse_statement(tokens)?));
     }
     // return the declaration
@@ -179,17 +97,163 @@ fn parse_declaration(tokens: &mut TokenList) -> Result<Expression, Error> {
                                def_value))
 }
 
+fn parse_use(tokens: &mut TokenList) -> Result<Expression, Error> {
+    tokens.consume(); // remove the use token
+    tokens.expect_whitespace()?; // separator between use and file
+    let file = tokens.expect(TokenType::StringLit)?; // the file to import
+    // ensure the file is valid and is a .rock file
+    let mut file_path = file.value.as_ref().unwrap().clone();
+    if file.start.file.is_some() {
+        let dir = file.start.file.as_ref().unwrap().clone();
+        let path = Path::new(&dir);
+        let parent = path.parent().unwrap();
+        file_path = format!("{}/{}", parent.to_str().unwrap(), file_path);
+    }
+    let valid = validate_boulder_file(file_path.clone());
+    if valid.is_err() {
+        return Err(Error::new("Invalid boulder file import", valid.unwrap_err(), file.start));
+    }
+    // lex the file
+    let mut ir = InputReader::new(Some(file_path.clone()), read_file(file_path));
+    let mut file_tokens = lex(&mut ir)?;
+    // return the file's AST in an expression
+    Ok(Expression::Use(parse_file(&mut file_tokens)?))
+}
+
+fn parse_fn_call(tokens: &mut TokenList, ident: Expression) -> Result<Expression, Error> {
+    tokens.consume(); // remove the open paren
+    let mut params = Vec::new();
+    while let Some(token) = tokens.peek() {
+        if token.token_type == TokenType::CloseParen {
+            tokens.consume(); // remove the close paren
+            break;
+        }
+        params.push(parse_statement(tokens)?);
+        // if the next token is not a comma, break out of the loop
+        if tokens.optional_expect(TokenType::Comma)?.is_none() {
+            tokens.expect(TokenType::CloseParen)?;
+            break;
+        }
+    }
+    return Ok(Expression::FnCall(Box::new(ident), params));
+}
+
+fn parse_property(tokens: &mut TokenList, accessed: Expression) -> Result<Expression, Error> {
+    tokens.consume(); // consume the '.'
+    let property = parse_identifier(tokens)?; // the property to access
+    // the property access expression
+    let expr = Expression::PropertyAccess(Box::new(accessed), Box::from(property));
+    if tokens.next_is(TokenType::Dot) {
+        // recursively parse the property access expressions
+        // this will handle things like a.b.c().d
+        return parse_property(tokens, expr);
+    }
+    return Ok(expr);
+}
+
+/// array indexes
+fn parse_index(tokens: &mut TokenList, accessed: Expression) -> Result<Expression, Error> {
+    todo!()
+}
+
+fn parse_bin_op(tokens: &mut TokenList, left: Expression, op: Operator) -> Result<Expression, Error> {
+    let right = parse_statement(tokens)?;
+    Ok(Expression::Binary(Box::new(left), op, Box::new(right)))
+}
+
+/// parse operators following an identifier or number
+fn parse_op(tokens: &mut TokenList, ident: Expression) -> Result<Expression, Error> {
+    let op = tokens.consume().unwrap().op.unwrap(); // the operator token
+    if op != Operator::Inc && op != Operator::Dec {
+        return parse_bin_op(tokens, ident, op);
+    }
+    todo!()
+}
+
+fn parse_unary_op(tokens: &mut TokenList, op: Operator) -> Result<Expression, Error> {
+    let right = parse_statement(tokens)?;
+    Ok(Expression::Unary(op, Box::new(right)))
+}
+
+fn parse_leading_op(tokens: &mut TokenList) -> Result<Expression, Error> {
+    let op = tokens.consume().unwrap(); // the operator token
+    match op.op.unwrap() {
+        Operator::Inc | Operator::Dec |
+        Operator::Not | Operator::Sub => parse_unary_op(tokens, op.op.unwrap()),
+        _ => {
+            Err(Error::new("Unexpected operator",
+                           format!("{} requires a left and right statement, but no left was found", op.op.unwrap()),
+                           op.start))
+        }
+    }
+}
+
+fn parse_number_lit(tokens: &mut TokenList) -> Result<Expression, Error> {
+    let number = Expression::NumberLiteral(tokens.consume().unwrap().value.unwrap());
+    tokens.optional_whitespace();
+    let next = tokens.peek();
+    if next.is_some() {
+        let next_token = next.unwrap();
+        match next_token.token_type {
+            TokenType::Dot => return parse_property(tokens, number),
+            TokenType::Operator => return parse_op(tokens, number),
+            _ => {}
+        }
+    }
+
+    Ok(number)
+}
+
+fn parse_identifier(tokens: &mut TokenList) -> Result<Expression, Error> {
+    let ident = Expression::Identifier(tokens.consume().unwrap().value.unwrap());
+    tokens.optional_whitespace();
+    let next = tokens.peek();
+    if next.is_some() {
+        let next_token = next.unwrap();
+        match next_token.token_type {
+            TokenType::OpenParen => return parse_fn_call(tokens, ident),
+            TokenType::OpenBracket => return parse_index(tokens, ident),
+            TokenType::Dot => return parse_property(tokens, ident),
+            TokenType::Operator => return parse_op(tokens, ident),
+            _ => {}
+        };
+    }
+
+    Ok(ident)
+}
+
+fn ret(tokens: &mut TokenList, expr: Expression) -> Result<Expression, Error> {
+    tokens.consume();
+    Ok(expr)
+}
+
 // statements inside of blocks
 fn parse_statement(tokens: &mut TokenList) -> Result<Expression, Error> {
+    // todo(eric): add support for string {} things
     if tokens.peek().is_none() { // if there are no more tokens
         return Err(Error::new_singular("Reached end of file without finding an expression!", tokens.eof())); // return an error
     }
-    optional_whitespace(tokens); // remove any whitespace
+    tokens.optional_whitespace(); // remove any whitespace
     match tokens.peek().unwrap().token_type {
         TokenType::Let => parse_declaration(tokens), // if the next token is a let, parse the declaration
+        TokenType::NumberLit => parse_number_lit(tokens),
+        TokenType::Ident => parse_identifier(tokens),
+        TokenType::Operator => parse_leading_op(tokens),
+        // todo(eric): if, while, for, etc
+        //  this will require a lot of work to make sure that the statements are parsed correctly :(
+        //  for example, conditionals and making sure they result in either true or false
+        TokenType::BoolTrue => ret(tokens, Expression::BoolLiteral(true)),
+        TokenType::BoolFalse => ret(tokens, Expression::BoolLiteral(false)),
+        TokenType::BinLit => Ok(Expression::BinaryLiteral(tokens.consume().unwrap().value.unwrap())),
+        TokenType::HexLit => Ok(Expression::HexLiteral(tokens.consume().unwrap().value.unwrap())),
+        TokenType::NOP => ret(tokens, Expression::NOP), // remove semicolons
+        TokenType::StringLit => {
+            let string = tokens.consume().unwrap().value.unwrap();
+            Ok(Expression::StringLiteral(string))
+        },
         _ => {
             Err(Error::new("Expected an expression",
-                           format!("Found: {}", tokens.peek().unwrap().token_type), tokens.peek().unwrap().start))
+                           format!("found: {}", tokens.peek().unwrap().token_type), tokens.peek().unwrap().start))
         }
     }
 }
@@ -199,18 +263,20 @@ fn parse_expression(tokens: &mut TokenList) -> Result<Expression, Error> {
     if tokens.peek().is_none() { // if there are no more tokens
         return Err(Error::new_singular("Reached end of file without finding an expression!", tokens.eof())); // return an error
     }
-    optional_whitespace(tokens); // remove any whitespace
+    tokens.optional_whitespace(); // remove any whitespace
     match tokens.peek().unwrap().token_type { // check the next token
         TokenType::OpenBracket => parse_block(tokens), // if the next token is an open block, parse the block
         TokenType::Fn => parse_fn(tokens), // if the next token is a function, parse the function
+        TokenType::NOP => ret(tokens, Expression::NOP), // if the next token is a no-op, return a no-op (basically removes semicolons)
+        TokenType::Use => parse_use(tokens),
         _ => { // other tokens
             Err(Error::new("Expected an expression",
-                           format!("Found: {}", tokens.peek().unwrap().token_type), tokens.peek().unwrap().start))
+                           format!("found: {}", tokens.peek().unwrap().token_type), tokens.peek().unwrap().start))
         }
     }
 }
 
-pub fn parse(tokens: &mut TokenList) -> Result<Expression, Error> {
+fn parse_file(tokens: &mut TokenList) -> Result<Vec<Expression>, Error> {
     let mut expressions = Vec::new();
 
     // parse the tokens and build the expression tree
@@ -231,5 +297,9 @@ pub fn parse(tokens: &mut TokenList) -> Result<Expression, Error> {
     }
 
     // return the abstract syntax tree
-    Ok(Expression::Program(expressions))
+    Ok(expressions)
+}
+
+pub fn parse(tokens: &mut TokenList) -> Result<Expression, Error> {
+    Ok(Expression::Program(parse_file(tokens)?))
 }
