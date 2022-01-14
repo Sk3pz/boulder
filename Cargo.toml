@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 better_term = "1.0.4"
+cli_tree = "1.0.0"

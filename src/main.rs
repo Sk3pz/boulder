@@ -8,14 +8,17 @@ pub mod operator;
 pub mod error;
 mod parser;
 pub mod expression;
+pub mod gen_c;
 
 use std::{env, fs};
 use std::fmt::Display;
 use std::fs::File;
 use std::path::Path;
 use better_term::{Color, flush_styles};
+use cli_tree::TreeNode;
 use crate::argument_parser::{Argument, parse_args};
 use crate::error::{Error, print_error};
+use crate::gen_c::generate_c_code;
 use crate::input_reader::InputReader;
 use crate::lexer::lex;
 use crate::parser::parse;
@@ -32,26 +35,19 @@ fn time_taken<T, F: FnMut() -> T>(mut f: F) -> (T, f64) {
     let start = std::time::Instant::now();
     let result = f();
     let end = start.elapsed();
-    let millis = round((end.as_nanos() as f64 / 1000000.0), 3);
+    let millis = round(end.as_nanos() as f64 / 1000000.0, 3);
     (result, millis)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{InputReader, time_taken};
+    use crate::{CodePos, InputReader, time_taken, TokenList};
     use crate::lexer::lex;
+    use crate::token::{Token, TokenType};
 
     #[test]
-    fn lexer_test() {
-        let code = "";
-        let mut ir = InputReader::new(None, code);
-        let (mut tokens, time) = time_taken(move || lex(&mut ir));
-        if tokens.is_err() {
-            println!("Lexer error: {}", tokens.unwrap_err());
-            return;
-        }
+    fn le_testing_zone() {
 
-        println!("Lexed tokens in {}ms. Tokens: {}", time, tokens.unwrap());
     }
 
 }
@@ -277,7 +273,7 @@ fn main() {
         println!("Parsing tokens...");
     }
 
-    let (ast, parse_time) = time_taken(|| parse(&mut tokens.as_mut().unwrap()));
+    let (mut ast, parse_time) = time_taken(|| parse(&mut tokens.as_mut().unwrap()));
     if ast.is_err() {
         print_error(ast.unwrap_err());
         return;
@@ -290,8 +286,26 @@ fn main() {
             format!("{}ms", parse_time)
         };
         println!("Parsing done. Took {}.", parse_display_time);
-        println!("AST:\n{}", ast.unwrap());
+        // println!("AST:\n{}", ast.unwrap());
+        let tree_node: TreeNode = ast.as_mut().unwrap().as_treenode();
+        println!("{}", tree_node);
         println!("Generating code...");
+    }
+
+    let (res, compile_time) = time_taken(|| generate_c_code(format!("output.c"), &mut ast.as_mut().unwrap()));
+
+    if res.is_err() {
+        println!("{}", res.unwrap_err());
+        return;
+    }
+
+    if verbose {
+        let parse_display_time = if compile_time > 500.0 {
+            format!("{}s", round(compile_time / 1000.0, 3))
+        } else {
+            format!("{}ms", compile_time)
+        };
+        println!("Generated code. Took {}.", parse_display_time);
     }
 
     flush_styles();

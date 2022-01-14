@@ -6,5 +6,5 @@ fn print(s: string) {
 fn println(s: string) {
     // todo: this will eventually be just print("{}\n", s) but the required language features are not yet implemented
     print(s)
-    print("\n")
+    //print("\n")
 }

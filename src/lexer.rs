@@ -1,4 +1,3 @@
-use crate::CodePos;
 use crate::error::Error;
 use crate::input_reader::InputReader;
 use crate::operator::Operator;
@@ -172,7 +171,13 @@ pub fn next_token(input: &mut InputReader) -> Result<Token, Error> {
             if let Some(next) = input.peek() {
                 if next == '.' {
                     input.consume();
-                    return Ok(Token::new(TokenType::Range, start, input.pos()));
+                    if let Some(next) = input.peek() {
+                        if next == '=' {
+                            input.consume();
+                            return Ok(Token::new_op(Operator::IRange, start, input.pos()));
+                        }
+                    }
+                    return Ok(Token::new_op(Operator::Range, start, input.pos()));
                 }
             }
             Ok(Token::new(TokenType::Dot, start, input.pos()))
@@ -380,6 +385,8 @@ pub fn next_token(input: &mut InputReader) -> Result<Token, Error> {
                     "return" => Ok(Token::new(TokenType::Return, start, input.pos())),
                     "match" => Ok(Token::new(TokenType::Match, start, input.pos())),
                     "struct" => Ok(Token::new(TokenType::Struct, start, input.pos())),
+                    "assert" => Ok(Token::new(TokenType::Assert, start, input.pos())),
+                    "in" => Ok(Token::new(TokenType::In, start, input.pos())),
                     "use" => Ok(Token::new(TokenType::Use, start, input.pos())),
                     "true" => Ok(Token::new(TokenType::BoolTrue, start, input.pos())),
                     "false" => Ok(Token::new(TokenType::BoolFalse, start, input.pos())),
@@ -400,7 +407,7 @@ pub fn next_token(input: &mut InputReader) -> Result<Token, Error> {
 pub fn lex(input: &mut InputReader) -> Result<TokenList, Error> {
     let mut tokens: Vec<Token> = Vec::new();
 
-    while let Some(c) = input.peek() {
+    while let Some(_) = input.peek() {
         // Process the next token
         tokens.push(next_token(input)?); // push the next token into the list
     }

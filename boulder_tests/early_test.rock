@@ -1,0 +1,10 @@
+fn test(s: int) -> int {
+    let x: int = 10
+    let y: int = 20
+    return x + y * s
+}
+
+fn main() -> int {
+    printf("%d\n", test(5))
+    return 0
+}

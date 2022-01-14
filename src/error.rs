@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use better_term::{Color, Style};
 use crate::{CodePos, read_file};
 
@@ -87,5 +87,24 @@ pub fn print_error(err: Error) {
                  line_num, Color::White, line,
                  pipe, carrot,
                  pc = Color::Blue, ec = error_style, ecr = Style::reset());
+    }
+}
+
+pub struct CompilerError {
+    pub msg: String,
+}
+
+impl CompilerError {
+    pub fn new<S: Into<String>>(msg: S) -> Self {
+        Self {
+            msg: msg.into()
+        }
+    }
+}
+
+impl Display for CompilerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}error{}: {}{}",
+               Style::default().fg(Color::BrightRed).bold(), Color::BrightWhite, self.msg, Style::reset())
     }
 }

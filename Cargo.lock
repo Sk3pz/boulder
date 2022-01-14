@@ -13,4 +13,11 @@ name = "boulder"
 version = "0.1.0"
 dependencies = [
  "better_term",
+ "cli_tree",
 ]
+
+[[package]]
+name = "cli_tree"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ce6c29371f8be2766c21701af826b1a8c1352fcc20eec08777c226d2dbbeea1"

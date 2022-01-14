@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use cli_tree::TreeNode;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Operator {
@@ -38,6 +39,8 @@ pub enum Operator {
     Inc,       // ++  (unary)
     Dec,       // --  (unary)
     Right,     // =>  (binary)
+    Range,     // ..  (binary)
+    IRange,    // ..= (binary)
 }
 
 impl Display for Operator {
@@ -79,6 +82,14 @@ impl Display for Operator {
             Operator::Inc => write!(f, "Inc `++`"),
             Operator::Dec => write!(f, "Dec `--`"),
             Operator::Right => write!(f, "Right `=>`"),
+            Operator::Range => write!(f, "Range `..`"),
+            Operator::IRange => write!(f, "InclusiveRange `..=`"),
         }
+    }
+}
+
+impl Into<TreeNode> for Operator {
+    fn into(self) -> TreeNode {
+        TreeNode::new(self.to_string())
     }
 }

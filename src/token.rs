@@ -8,15 +8,14 @@ pub enum TokenType {
     Whitespace,
     Comma, // ,
     Dot, // .
-    Range, // ..
     Colon, // :
     DoubleColon, // ::
-    OpenParen,
-    CloseParen,
-    OpenBrace,
-    CloseBrace,
-    OpenBracket,
-    CloseBracket,
+    OpenParen, // (
+    CloseParen, // )
+    OpenBrace, // [
+    CloseBrace, // ]
+    OpenBracket, // {
+    CloseBracket, // }
     Interrupt, // @
     Panic, // ?
 
@@ -41,6 +40,8 @@ pub enum TokenType {
     Return,    // "return"
     Match,     // "match"
     Struct,    // "struct"
+    Assert,    // "assert"
+    In,        // "in"
     Use,       // "use"
     Macro,     // "macro" (currently unused)
     BoolTrue,  // "true"
@@ -69,10 +70,11 @@ impl Display for TokenType {
             TokenType::Return => write!(f, "Return"),
             TokenType::Match => write!(f, "Match"),
             TokenType::Struct => write!(f, "Struct"),
+            TokenType::Assert => write!(f, "Assert"),
+            TokenType::In => write!(f, "In"),
             TokenType::BoolTrue => write!(f, "BoolTrue"),
             TokenType::BoolFalse => write!(f, "BoolFalse"),
             TokenType::Dot => write!(f, "Dot"),
-            TokenType::Range => write!(f, "Range"),
             TokenType::Colon => write!(f, "Colon"),
             TokenType::OpenParen => write!(f, "OpenParen"),
             TokenType::CloseParen => write!(f, "CloseParen"),
@@ -288,19 +290,42 @@ impl TokenList {
 
     pub fn expect_op(&mut self, op: Operator) -> Result<Operator, Error> {
         let token = self.expect(TokenType::Operator)?;
-        Ok(token.op.unwrap())
+        if token.op.unwrap() == op {
+            Ok(token.op.unwrap())
+        } else {
+            Err(Error::new("Unexpected token", format!("expected {}", op), token.start))
+        }
     }
 
     pub fn optional_op(&mut self, op: Operator) -> Result<Option<Operator>, Error> {
         if let Some(t) = self.optional_expect(TokenType::Operator)? {
-            Ok(Some(t.op.unwrap()))
+            if t.op.unwrap() == op {
+                Ok(Some(t.op.unwrap()))
+            } else {
+                Ok(None)
+            }
         } else {
             Ok(None)
         }
     }
 
-    pub fn next_is(&self, tt: TokenType) -> bool {
+    pub fn next_is(&mut self, tt: TokenType) -> bool {
+        self.optional_whitespace();
         self.peek().map(|t| t.token_type == tt).unwrap_or(false)
+    }
+
+    pub fn next_is_op(&mut self, op: Operator) -> bool {
+        self.optional_whitespace();
+        self.peek().map(|t| t.op.unwrap() == op).unwrap_or(false)
+    }
+
+    // returns the next token after whitespace without removing the whitespace
+    pub fn next_after_ws(&mut self, tt: TokenType) -> bool {
+        let mut index : usize = 0;
+        while self.peek_nth(index).map(|t| t.token_type == TokenType::Whitespace).unwrap_or(false) {
+            index += 1;
+        }
+        self.peek_nth(index).map(|t| t.token_type == tt).unwrap_or(false)
     }
 }
 
