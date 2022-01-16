@@ -7,9 +7,9 @@ Boulder uses the `.rock` extension for files
 ### Implemented:
 ✅ Input Stream\
 ✅ Lexer\
-❔ Parser (Currently Working On)\
-❌ Import Statements (other files)\
-❌ Compiling to C\
+✅ Parser (Currently Working On)\
+✅ Import Statements (other files)\
+❔ Compiling to C\
 ❌ Compiling to ASM\
 ❌ Compiling to Machine Code\
 ❌ Sediment (Package manager for Boulder libraries and programs)
