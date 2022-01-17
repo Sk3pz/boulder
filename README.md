@@ -7,16 +7,16 @@ Boulder uses the `.rock` extension for files
 ### Implemented:
 ✅ Input Stream\
 ✅ Lexer\
-✅ Parser (Currently Working On)\
+✅ Parser\
 ✅ Import Statements (other files)\
-❔ Compiling to C\
+❔ Compiling to C (Currently Working On)\
 ❌ Compiling to ASM\
 ❌ Compiling to Machine Code\
 ❌ Sediment (Package manager for Boulder libraries and programs)
 
 Syntax example of Boulder (currently using rust syntax because of the similarity for syntax highlighting): 
 ```rust
-use std::os::println
+use "print.rock"
 
 macro BINARY_NUMBER_FAIL = 0x04
 
