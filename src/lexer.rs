@@ -55,7 +55,7 @@ fn lex_bin_lit(input: &mut InputReader) -> Result<Token, Error> {
 fn next_numeric(input: &mut InputReader) -> Result<String, Error> {
     let start = input.pos(); // used for error handling
     let mut num = String::new(); // the number that will be returned
-    let mut decimal = false; // if the number is a decimal
+    //let mut decimal = false; // if the number is a decimal
     while let Some(c) = input.peek() {
         if c.is_numeric() { // if the character is a number
             input.consume();
@@ -70,18 +70,21 @@ fn next_numeric(input: &mut InputReader) -> Result<String, Error> {
             // handle decimal numbers
             let next = next_peek.unwrap();
             if next.is_numeric() {
-                if decimal {
-                    return Err(Error::new(
-                        "Extra Decimal Point", format!("The number literal is already a decimal!"), start));
-                }
-                decimal = true;
-                input.consume(); // consume the .
-                num.push(c);
-                continue; // continue until the number is complete
+                return Err(Error::new(
+                    "Unexpected Token", format!("Decimals/floating point numbers are not yet supported!"), input.pos()));
+                // todo(eric): handle decimal numbers
+                // if decimal {
+                //     return Err(Error::new(
+                //         "Extra Decimal Point", format!("The number literal is already a decimal!"), start));
+                // }
+                // decimal = true;
+                // input.consume(); // consume the .
+                // num.push(c);
+                // continue; // continue until the number is complete
             } else {
                 break; // the . is a property accessor, so break and return the number
             }
-        } else { // todo: Potentially handle type flags here for numeric literals (i.e. 10u8) and hex/binary literals (too lazy to right now)
+        } else { // todo(eric): Potentially handle type flags here for numeric literals (i.e. 10u8)
             break;
         }
     }

@@ -196,6 +196,15 @@ impl TokenList {
         self.peek_nth(0)
     }
 
+    /// peek at the location of the next token in the list without removing it.
+    pub fn peek_loc(&self) -> Option<CodePos> {
+        if let Some(t) = self.peek() {
+            Some(t.start.clone())
+        } else {
+            None
+        }
+    }
+
     /// Removes the nth token in the list and returns it.
     /// Returns None if the index is out of bounds
     pub fn consume_nth(&mut self, n: usize) -> Option<Token> {
@@ -326,6 +335,14 @@ impl TokenList {
             index += 1;
         }
         self.peek_nth(index).map(|t| t.token_type == tt).unwrap_or(false)
+    }
+
+    pub fn second_after_ws(&mut self) -> Option<Token> {
+        let mut index : usize = 1;
+        while self.peek_nth(index).map(|t| t.token_type == TokenType::Whitespace).unwrap_or(false) {
+            index += 1;
+        }
+        self.peek_nth(index)
     }
 }
 

@@ -7,7 +7,7 @@ pub mod token;
 pub mod operator;
 pub mod error;
 mod parser;
-pub mod expression;
+pub mod statement;
 pub mod gen_c;
 
 use std::{env, fs};

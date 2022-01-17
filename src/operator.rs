@@ -1,46 +1,107 @@
 use std::fmt::Display;
 use cli_tree::TreeNode;
 
+
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Operator {
-    Add,       // +   (binary)
-    Sub,       // -   (binary & unary)
-    Mul,       // *   (binary)
-    Div,       // /   (binary)
-    Mod,       // %   (binary)
-    Xor,       // ^   (binary)
-    And,       // &   (binary)
-    Or,        // |   (binary)
-    Assign,    // =   (binary)
-    Eq,        // ==  (binary)
-    Neq,       // !=  (binary)
-    Lt,        // <   (binary)
-    Lte,       // <=  (binary)
-    Gt,        // >   (binary)
-    Gte,       // >=  (binary)
-    BoolAnd,   // &&  (binary)
-    BoolOr,    // ||  (binary)
-    Not,       // !   (unary)
-    MulAssign, // *=  (binary)
-    DivAssign, // /=  (binary)
-    ModAssign, // %=  (binary)
-    AddAssign, // +=  (binary)
-    SubAssign, // -=  (binary)
-    XorAssign, // ^=  (binary)
-    AndAssign, // &=  (binary)
-    OrAssign,  // |=  (binary)
-    Shl,       // <<  (binary)
-    Shr,       // >>  (binary)
-    ShlAssign, // <<= (binary)
-    ShrAssign, // >>= (binary)
-    Shlu,      // <<< (binary)
-    Shru,      // >>> (binary)
-    Move,      // ->  (binary)
-    Inc,       // ++  (unary)
-    Dec,       // --  (unary)
-    Right,     // =>  (binary)
-    Range,     // ..  (binary)
-    IRange,    // ..= (binary)
+    Add,       // +   (binary)         0
+    Sub,       // -   (binary & unary) 0
+    Mul,       // *   (binary)         1
+    Div,       // /   (binary)         1
+    Mod,       // %   (binary)         1
+    Xor,       // ^   (binary)         2
+    And,       // &   (binary)         2
+    Or,        // |   (binary)         2
+    Not,       // !   (binary & unary) 2
+    Assign,    // =   (binary)         -
+    Eq,        // ==  (binary)         -
+    Neq,       // !=  (binary)         -
+    Lt,        // <   (binary)         -
+    Lte,       // <=  (binary)         -
+    Gt,        // >   (binary)         -
+    Gte,       // >=  (binary)         -
+    BoolAnd,   // &&  (binary)         -
+    BoolOr,    // ||  (binary)         -
+    MulAssign, // *=  (binary)         -
+    DivAssign, // /=  (binary)         -
+    ModAssign, // %=  (binary)         -
+    AddAssign, // +=  (binary)         -
+    SubAssign, // -=  (binary)         -
+    XorAssign, // ^=  (binary)         -
+    AndAssign, // &=  (binary)         -
+    OrAssign,  // |=  (binary)         -
+    Shl,       // <<  (binary)         -
+    Shr,       // >>  (binary)         -
+    ShlAssign, // <<= (binary)         -
+    ShrAssign, // >>= (binary)         -
+    Shlu,      // <<< (binary)         -
+    Shru,      // >>> (binary)         -
+    Move,      // ->  (binary)         -
+    Inc,       // ++  (unary)          0
+    Dec,       // --  (unary)          0
+    Right,     // =>  (binary)         -
+    Range,     // ..  (binary)         -
+    IRange,    // ..= (binary)         -
+}
+
+impl Operator {
+    pub fn as_treenode(&self) -> TreeNode {
+        TreeNode::new(self.to_string())
+    }
+
+    // returns a number from 0 to 2, with higher numbers being higher precedence
+    pub fn precedence(&self) -> Option<u8> {
+        match self {
+            Operator::Add | Operator::Sub => Some(0),
+            Operator::Mul | Operator::Div | Operator::Mod => Some(1),
+            Operator::Xor | Operator::And | Operator::Or | Operator::Not => Some(2),
+            _ => None
+        }
+    }
+
+    pub fn as_raw(&self) -> String {
+        match self {
+            Operator::Add => String::from("+"),
+            Operator::Sub => String::from("-"),
+            Operator::Mul => String::from("*"),
+            Operator::Div => String::from("+"),
+            Operator::Mod => String::from("%"),
+            Operator::Xor => String::from("^"),
+            Operator::And => String::from("&"),
+            Operator::Or => String::from("|"),
+            Operator::Assign => String::from("="),
+            Operator::Eq => String::from("=="),
+            Operator::Neq => String::from("!="),
+            Operator::Lt => String::from("<"),
+            Operator::Lte => String::from("<="),
+            Operator::Gt => String::from(">"),
+            Operator::Gte => String::from(">="),
+            Operator::BoolAnd => String::from("&&"),
+            Operator::BoolOr => String::from("||"),
+            Operator::Not => String::from("!"),
+            Operator::MulAssign => String::from("*="),
+            Operator::DivAssign => String::from("/="),
+            Operator::ModAssign => String::from("%="),
+            Operator::AddAssign => String::from("+="),
+            Operator::SubAssign => String::from("-="),
+            Operator::XorAssign => String::from("^="),
+            Operator::AndAssign => String::from("&="),
+            Operator::OrAssign => String::from("|="),
+            Operator::Shl => String::from("<<"),
+            Operator::Shr => String::from(">>"),
+            Operator::ShlAssign => String::from("<<="),
+            Operator::ShrAssign => String::from(">>="),
+            Operator::Shlu => String::from("<<<"),
+            Operator::Shru => String::from(">>>"),
+            Operator::Move => String::from("->"),
+            Operator::Inc => String::from("++"),
+            Operator::Dec => String::from("--"),
+            Operator::Right => String::from("=>"),
+            Operator::Range => String::from(".."),
+            Operator::IRange => String::from("..+"),
+        }
+    }
 }
 
 impl Display for Operator {
