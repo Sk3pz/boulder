@@ -90,6 +90,7 @@ pub fn print_error(err: Error) {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompilerError {
     pub msg: String,
 }

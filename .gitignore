@@ -14,3 +14,6 @@ target/
 build.sh
 run.sh
 boulder
+
+*.c
+boulder-lang/

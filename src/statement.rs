@@ -137,6 +137,14 @@ impl Display for ShuntedStack {
     }
 }
 
+impl Iterator for ShuntedStack {
+    type Item = ShuntedStackItem;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.items.pop()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement {
     Program{ exprs: Vec<Statement> }, // program - contains the expressions of the program
@@ -147,8 +155,6 @@ pub enum Statement {
     FnCall { ident: Box<Statement>, params: Vec<Statement> },
     If {condition: Box<Statement>, body: Box<Statement>, else_statement: Option<Box<Statement>> }, // else is optional
     Return { value: Box<Statement> },
-    Unary { op: Operator, expr: Box<Statement>, leading: bool },
-    Binary { left: Box<Statement>, op: Operator, right: Box<Statement> },
     Postfix { postfix: ShuntedStack },
 
     Panic { value: Box<Statement> },
@@ -267,18 +273,6 @@ impl Statement {
             }
             Statement::Return { value } => {
                 format!("{indent}- Return:\n{indent}  - Value:\n{}", value.display(depth + 2))
-            }
-            Statement::Unary { op, expr: expression, leading } => {
-                format!("{indent}- Unary:\n{indent}  - Placement: {}\n{indent}  - Operator: {}\n{indent}  - Expression:\n{}",
-                        if *leading { "prefix" } else { "postfix" },
-                        op,
-                        expression.display(depth + 2))
-            }
-            Statement::Binary { left, op, right } => {
-                format!("{indent}- Binary:\n{indent}  - Left:\n{}{indent}  - Operator: {}\n{indent}  - Right:\n{}",
-                        left.display(depth + 2),
-                        op,
-                        right.display(depth + 2))
             }
             Statement::Postfix { postfix: shunted } => {
                 format!("{indent}- Postfix:\n{indent}  - Shunted:\n{}", shunted)
@@ -416,20 +410,6 @@ impl Statement {
                 node.add_child(TreeNode::new_with_children("Value:", vec![expr.as_treenode()]));
                 node
             }
-            Statement::Binary { left, op, right} => {
-                let mut node = TreeNode::new("Binary");
-                node.add_child(left.as_treenode());
-                node.add_child((*op).into());
-                node.add_child(right.as_treenode());
-                node
-            }
-            Statement::Unary { expr, op, leading } => {
-                let mut node = TreeNode::new("Unary");
-                node.add_child((*op).into());
-                node.add_child(expr.as_treenode());
-                node.add_child(TreeNode::new(format!("Leading: {}", leading)));
-                node
-            }
             Statement::Postfix { postfix: shunted } => {
                 shunted.as_treenode()
             }
@@ -509,6 +489,39 @@ impl Statement {
 
 impl Display for Statement {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.display(0))
+        match self {
+            Statement::Program { .. } => write!(f, "Program"),
+            Statement::Use { .. } => write!(f, "Use"),
+            Statement::Block { .. } => write!(f, "Block"),
+            Statement::Fn { .. } => write!(f, "Fn"),
+            Statement::FnCall { .. } => write!(f, "FnCall"),
+            Statement::If { .. } => write!(f, "If"),
+            Statement::Return { .. } => write!(f, "Return"),
+            Statement::Postfix { .. } => write!(f, "Postfix"),
+            Statement::Panic { .. } => write!(f, "Panic"),
+            Statement::Assert { .. } => write!(f, "Assert"),
+            Statement::Declaration { .. } => write!(f, "Declaration"),
+            Statement::Assignment { .. } => write!(f, "Assignment"),
+            Statement::PropertyAccess { .. } => write!(f, "PropertyAccess"),
+            Statement::ArrayAccess { .. } => write!(f, "ArrayAccess"),
+            Statement::While { .. } => write!(f, "While"),
+            Statement::For { .. } => write!(f, "For"),
+            Statement::Loop { .. } => write!(f, "Loop"),
+            Statement::Break => write!(f, "Break"),
+            Statement::Continue => write!(f, "Continue"),
+            Statement::Type { .. } => write!(f, "Type"),
+            Statement::ArrayType { .. } => write!(f, "ArrayType"),
+            Statement::Identifier { .. } => write!(f, "Identifier"),
+            Statement::StringLiteral { .. } => write!(f, "StringLiteral"),
+            Statement::NumberLiteral { .. } => write!(f, "NumberLiteral"),
+            Statement::BinaryLiteral { .. } => write!(f, "BinaryLiteral"),
+            Statement::HexLiteral { .. } => write!(f, "HexLiteral"),
+            Statement::CharLiteral { .. } => write!(f, "CharLiteral"),
+            Statement::BoolLiteral { .. } => write!(f, "BoolLiteral"),
+            Statement::Reference => write!(f, "Reference"),
+            Statement::Pointer => write!(f, "Pointer"),
+            Statement::NOP => write!(f, "NOP"),
+            Statement::Void => write!(f, "Void"),
+        }
     }
 }

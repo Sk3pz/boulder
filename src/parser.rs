@@ -301,39 +301,31 @@ fn parse_assert(tokens: &mut TokenList) -> Result<Statement, Error> {
     Ok(Statement::Assert { expr: Box::new(assertion) })
 }
 
-/// returns true if negative
-fn parse_shunting_yard_leading_op(op: Token, postfix: &mut ShuntedStack) -> Result<bool, Error> {
-    match op.op.unwrap() {
+/// returns (negative, increment, decrement)
+fn parse_shunting_yard_leading_op(op: Token, postfix: &mut ShuntedStack) -> Result<(bool, bool, bool), Error> {
+    return match op.op.unwrap() {
         Operator::Sub => {
-            return Ok(true);
+            Ok((true, false, false))
         }
         Operator::Inc => {
+            postfix.push(ShuntedStackItem::new_operand(Statement::NumberLiteral
+            { value: Number::new("1".to_string(), false) }));
+            Ok((false, true, false))
             // immediately push the add because ++x = (1 + x)
-            postfix.push(ShuntedStackItem::new_operator(Operator::Add));
-            postfix.push(ShuntedStackItem::new_operand(
-                Statement::NumberLiteral {
-                    value: Number::new("1".to_string(), false)
-                }
-            ));
         }
         Operator::Dec => {
-            // immediately push the subtract because --x = (1 - x)
-            postfix.push(ShuntedStackItem::new_operator(Operator::Sub));
-            postfix.push(ShuntedStackItem::new_operand(
-                Statement::NumberLiteral {
-                    value: Number::new("1".to_string(), false)
-                }
-            ));
+            postfix.push(ShuntedStackItem::new_operand(Statement::NumberLiteral
+            { value: Number::new("1".to_string(), false) }));
+            Ok((false, false, true))
         }
         _ => {
-            return Err(Error::new(
+            Err(Error::new(
                 "Unexpected operator",
                 "found binary operator after another binary operator",
                 op.start
-            ));
+            ))
         }
     }
-   Ok(false)
 }
 
 fn shunting_yard(tokens: &mut TokenList, unary_start: bool, leading: Option<Statement>) -> Result<Statement, Error> {
@@ -352,38 +344,84 @@ fn shunting_yard(tokens: &mut TokenList, unary_start: bool, leading: Option<Stat
     // last_op is used to handle unary operations mixed in with binary operations
     let mut last_op: Option<Operator> = None;
     let mut negative = false;
+    let mut last_was_inc = false;
+    let mut last_was_dec = false;
+    let mut last_ident: Option<Statement> = None;
+    let mut last_was_num = false;
 
     if unary_start {
         let op = tokens.expect(TokenType::Operator)?;
-        negative = parse_shunting_yard_leading_op(op, &mut postfix)?;
+        (negative, last_was_inc, last_was_dec) = parse_shunting_yard_leading_op(op, &mut postfix)?;
     }
 
     while let Some(token) = tokens.peek() {
         match token.token_type {
             TokenType::NumberLit => {
                 tokens.consume();
+
+                if last_ident.is_some() || last_was_num {
+                    // the last token was an identifier or number, which is not allowed
+                    return Err(Error::new(
+                        "Unexpected number",
+                        "found value following another value. did you mean to use a binary operator?",
+                        token.start
+                    ));
+                }
+
                 // numbers get pushed to the stack
                 postfix.push(ShuntedStackItem::new_operand(
                     Statement::NumberLiteral {
                         value: Number::new(token.value.unwrap(), negative)
                     }
                 ));
+                if last_was_inc {
+                    postfix.push(ShuntedStackItem::new_operator(Operator::Add));
+                }
+                if last_was_dec {
+                    postfix.push(ShuntedStackItem::new_operator(Operator::Sub));
+                }
                 last_op = None;
                 negative = false;
+                last_was_inc = false;
+                last_was_dec = false;
+                last_was_num = true;
+                last_ident = None;
             }
             TokenType::Ident => {
+                if last_ident.is_some() || last_was_num {
+                    // the last token was an identifier or number, which is not allowed
+                    return Err(Error::new(
+                        "Unexpected number",
+                        "found value following another value. did you mean to use a binary operator?",
+                        token.start
+                    ));
+                }
+
                 let stmt = parse_identifier(tokens, false)?;
-                postfix.push(ShuntedStackItem::new_operand(stmt));
+                // todo: handle negative operators before identifiers
+                postfix.push(ShuntedStackItem::new_operand(stmt.clone()));
+                if last_was_inc {
+                    postfix.push(ShuntedStackItem::new_operator(Operator::Add));
+                }
+                if last_was_dec {
+                    postfix.push(ShuntedStackItem::new_operator(Operator::Sub));
+                }
                 last_op = None;
                 negative = false;
+                last_was_inc = false;
+                last_was_dec = false;
+                last_was_num = false;
+                last_ident = Some(stmt);
             }
             TokenType::Operator => {
                 tokens.consume();
+                last_was_num = false;
+                last_ident = None;
                 let operator = token.op.unwrap();
 
                 // handle leading ops (unary)
                 if last_op.is_some() {
-                    negative = parse_shunting_yard_leading_op(token, &mut postfix)?;
+                    (negative, last_was_inc, last_was_dec) = parse_shunting_yard_leading_op(token, &mut postfix)?;
                     last_op = Some(operator.clone());
                     continue;
                 }
@@ -406,7 +444,6 @@ fn shunting_yard(tokens: &mut TokenList, unary_start: bool, leading: Option<Stat
                         o2_token.clone().start));
                     }
                     let o2 = o2_token.op.unwrap();
-
                     if o2.precedence() <= operator.precedence() {
                         // or that o2 has a lower precedence than operator
                         break;
@@ -420,10 +457,28 @@ fn shunting_yard(tokens: &mut TokenList, unary_start: bool, leading: Option<Stat
                 last_op = Some(operator.clone());
             }
             TokenType::OpenParen => {
+                if last_was_num {
+                    return Err(Error::new(
+                        "Unexpected number",
+                        "found value following another value. did you mean to use a binary operator?",
+                        token.start
+                    ));
+                }
+                if last_ident.is_some() {
+                    // todo(eric): function call
+                    parse_fn_call(tokens, last_ident.unwrap())?;
+                    last_was_num = false;
+                    last_ident = None;
+                    last_op = None;
+                    continue;
+                }
                 tokens.consume();
                 op_stack.push(token);
                 // set to an operator not used by this algorithm, because '(' is not an operator
                 last_op = Some(Operator::AddAssign);
+                // todo(eric): handle negative signs before the '('
+                last_was_num = false;
+                last_ident = None;
             }
             TokenType::CloseParen => {
                 let mut found = false;
@@ -454,6 +509,10 @@ fn shunting_yard(tokens: &mut TokenList, unary_start: bool, leading: Option<Stat
 
                 last_op = None;
                 negative = false;
+                last_was_inc = false;
+                last_was_dec = false;
+                last_was_num = false;
+                last_ident = None;
             }
             TokenType::Whitespace => {
                 tokens.consume();
@@ -488,59 +547,8 @@ fn shunting_yard(tokens: &mut TokenList, unary_start: bool, leading: Option<Stat
     })
 }
 
-fn parse_bin_op(tokens: &mut TokenList, left: Statement, op: Operator) -> Result<Statement, Error> {
-    let right = parse_statement(tokens)?;
-    if op == Operator::Assign {
-        return Ok(Statement::Assignment {
-            ident: Box::new(left),
-            value: Box::new(right)
-        });
-    }
-    Ok(Statement::Binary {
-        left: Box::new(left),
-        op,
-        right: Box::new(right)
-    })
-}
-
-/// parse operators following an identifier or number
-fn parse_op(tokens: &mut TokenList, left: Statement) -> Result<Statement, Error> {
-    let op = tokens.consume().unwrap().op.unwrap(); // the operator token
-    return if op != Operator::Inc && op != Operator::Dec {
-        parse_bin_op(tokens, left, op)
-    } else {
-        Ok(Statement::Unary {
-            op,
-            expr: Box::new(left),
-            leading: false
-        })
-    }
-}
-
-fn parse_unary_op(tokens: &mut TokenList, op: Operator) -> Result<Statement, Error> {
-    let right = parse_statement(tokens)?;
-    Ok(Statement::Unary {
-        op,
-        expr: Box::new(right),
-        leading: true
-    })
-}
-
-fn parse_leading_op(tokens: &mut TokenList) -> Result<Statement, Error> {
-    let op = tokens.consume().unwrap(); // the operator token
-    match op.op.unwrap() {
-        Operator::Inc | Operator::Dec |
-        Operator::Not | Operator::Sub => parse_unary_op(tokens, op.op.unwrap()),
-        _ => {
-            Err(Error::new("Unexpected operator",
-                           format!("{} requires a left and right statement, but no left was found", op.op.unwrap()),
-                           op.start))
-        }
-    }
-}
-
 fn parse_number_lit(tokens: &mut TokenList) -> Result<Statement, Error> {
-    let mut num = tokens.consume().unwrap().value.unwrap();
+    let num = tokens.consume().unwrap().value.unwrap();
     let mut number = Statement::NumberLiteral {
         value: Number::new(num, false)
     };

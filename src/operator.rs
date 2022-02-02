@@ -15,14 +15,14 @@ pub enum Operator {
     Or,        // |   (binary)         2
     Not,       // !   (binary & unary) 2
     Assign,    // =   (binary)         -
-    Eq,        // ==  (binary)         -
-    Neq,       // !=  (binary)         -
-    Lt,        // <   (binary)         -
-    Lte,       // <=  (binary)         -
-    Gt,        // >   (binary)         -
-    Gte,       // >=  (binary)         -
-    BoolAnd,   // &&  (binary)         -
-    BoolOr,    // ||  (binary)         -
+    Eq,        // ==  (binary)         2
+    Neq,       // !=  (binary)         2
+    Lt,        // <   (binary)         0
+    Lte,       // <=  (binary)         1
+    Gt,        // >   (binary)         0
+    Gte,       // >=  (binary)         1
+    BoolAnd,   // &&  (binary)         1
+    BoolOr,    // ||  (binary)         1
     MulAssign, // *=  (binary)         -
     DivAssign, // /=  (binary)         -
     ModAssign, // %=  (binary)         -
@@ -31,12 +31,12 @@ pub enum Operator {
     XorAssign, // ^=  (binary)         -
     AndAssign, // &=  (binary)         -
     OrAssign,  // |=  (binary)         -
-    Shl,       // <<  (binary)         -
-    Shr,       // >>  (binary)         -
+    Shl,       // <<  (binary)         2
+    Shr,       // >>  (binary)         2
     ShlAssign, // <<= (binary)         -
     ShrAssign, // >>= (binary)         -
-    Shlu,      // <<< (binary)         -
-    Shru,      // >>> (binary)         -
+    Shlu,      // <<< (binary)         2
+    Shru,      // >>> (binary)         2
     Move,      // ->  (binary)         -
     Inc,       // ++  (unary)          0
     Dec,       // --  (unary)          0
@@ -53,10 +53,21 @@ impl Operator {
     // returns a number from 0 to 2, with higher numbers being higher precedence
     pub fn precedence(&self) -> Option<u8> {
         match self {
-            Operator::Add | Operator::Sub => Some(0),
-            Operator::Mul | Operator::Div | Operator::Mod => Some(1),
-            Operator::Xor | Operator::And | Operator::Or | Operator::Not => Some(2),
+            Operator::Add | Operator::Sub | Operator::Gt | Operator::Lt => Some(0),
+            Operator::Mul | Operator::Div | Operator::Mod |
+            Operator::Gte | Operator::Lte | Operator::BoolAnd | Operator::BoolOr => Some(1),
+            Operator::Xor | Operator::And | Operator::Or | Operator::Not |
+            Operator::Shl | Operator::Shr | Operator::Shlu | Operator::Shru |
+            Operator::Eq  | Operator::Neq => Some(2),
             _ => None
+        }
+    }
+
+    pub fn is_boolean(&self) -> bool {
+        match self {
+            Operator::Eq | Operator::Neq | Operator::Lt | Operator::Gt | Operator::Lte |
+            Operator::Gte | Operator::BoolAnd | Operator::BoolOr => true,
+            _ => false
         }
     }
 

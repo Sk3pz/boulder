@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-better_term = "1.0.4"
-cli_tree = "1.0.0"
+better_term = "*"
+cli_tree = "*"

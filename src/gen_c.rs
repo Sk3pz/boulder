@@ -1,8 +1,5 @@
-use std::fs::OpenOptions;
-use std::io::Write;
-use std::path::Path;
 use crate::error::CompilerError;
-use crate::statement::Statement;
+use crate::statement::{Statement, ShuntedStackItem};
 use crate::operator::Operator;
 
 impl Operator {
@@ -12,7 +9,6 @@ impl Operator {
 }
 
 impl Statement {
-
     fn gen_c_code(&mut self) -> Result<String, CompilerError> {
         match self {
             Statement::Program { exprs } => {
@@ -120,16 +116,6 @@ impl Statement {
                 let val = value.gen_c_code()?;
                 Ok(format!("return {}", val))
             }
-            Statement::Unary { expr, op, leading } => {
-                Ok(if leading.clone() {
-                    format!("{}{}", op.gen_c_code()?, expr.gen_c_code()?)
-                } else {
-                    format!("{}{}", expr.gen_c_code()?, op.gen_c_code()?)
-                })
-            }
-            Statement::Binary { left, op, right } => {
-                Ok(format!("{} {} {}", left.gen_c_code()?, op.gen_c_code()?, right.gen_c_code()?))
-            }
             Statement::Panic { .. } => {
                 todo!()
             }
@@ -163,6 +149,37 @@ impl Statement {
 
                 let val = value.gen_c_code()?;
                 Ok(format!("{} = {}", ident, val))
+            }
+            Statement::Postfix { postfix } => {
+                let mut c_code = String::new();
+                let mut operand_stack: Vec<ShuntedStackItem> = Vec::new();
+
+                // values for verifying the types of operators allowed
+                let mut boolean_mode = false;
+                let mut algebra_mode = false;
+
+                for ssi in postfix {
+                    if ssi.is_operand() {
+                        operand_stack.push(ssi);
+                    } else {
+                        let op = ssi.get_operator().unwrap();
+                        if op.precedence().is_none() {
+                            return Err(CompilerError::new(format!("Expected expression operator but found invalid operator `{}`.",
+                                        op)));
+                        }
+                        if !boolean_mode && !algebra_mode {
+                            if op.is_boolean() {
+                                boolean_mode = true;
+                            } else {
+                                algebra_mode = true;
+                            }
+                        }
+
+                        // todo(eric): handle operators
+                    }
+                }
+                
+                Ok(c_code)
             }
             Statement::PropertyAccess { expr, property } => {
                 let expr = expr.gen_c_code()?;
@@ -199,21 +216,14 @@ impl Statement {
             Statement::StringLiteral { value } => {
                 Ok(format!("\"{}\"", value))
             }
-            _ => todo!()
+            _ => {
+                // todo(eric): implement all other patterns to convert to c
+                Ok(format!("NOT_YET_IMPLEMENTED_BOULDER_FEATURE"))
+            }
         }
     }
 }
 
-pub fn generate_c_code(path: String, ast: &mut Statement) -> Result<(), CompilerError> {
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(Path::new(&path))
-        .expect("Failed to open file");
-
-    file.write_all(ast.gen_c_code()?.as_bytes())
-    .expect("Failed to write to file");
-
-    Ok(())
+pub fn generate_c_code(ast: &mut Statement) -> Result<String, CompilerError> {
+    ast.gen_c_code()
 }

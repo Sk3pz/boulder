@@ -1,10 +1,19 @@
+
+fn odd_test(s: int) -> int {
+    let x: int = 2
+    let y: int = 3
+    return x + y * s // 5 * s
+}
+
 fn test(s: int) -> int {
-    let x: int = 10
-    let y: int = -20
-    return x + y * s
+    let x: int = 3
+    let y: int = 2
+    return x + y * odd_test(s) + 1 // 5 * (5 * s) + 1
 }
 
 fn main() -> int {
-    printf("%d\n", test(-5 + 2))
-    return 0;
+    // this call to printf is a c function that directly translates,
+    // but it wont work for other compiler targets or the interpreter.
+    printf("%d\n", test(0 + 1))
+    return (++5 + 3) * (8 - 2++)
 }

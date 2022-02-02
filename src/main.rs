@@ -8,11 +8,13 @@ pub mod operator;
 pub mod error;
 mod parser;
 pub mod statement;
-pub mod gen_c;
+mod gen_c;
+mod interpreter;
 
 use std::{env, fs};
 use std::fmt::Display;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
 use std::path::Path;
 use better_term::{Color, flush_styles};
 use cli_tree::TreeNode;
@@ -153,7 +155,6 @@ fn main() {
     args.remove(0);
 
     let input_file: &Path;
-    let output_file: &Path;
     let mut color = true;
     let mut release = false;
     let mut quiet = false;
@@ -192,14 +193,15 @@ fn main() {
         }
     }
 
-    let mut output_file_path: Option<String> = None;
+    // the output file
+    let mut output_file_path = input_file.to_str().expect("failed in converting file path to string").replace(".rock", "");
 
     if !args.is_empty() {
         let arguments = parse_args(&args);
         for a in arguments {
             match a {
                 Argument::Output(o) => {
-                    output_file_path = Some(o);
+                    output_file_path = o;
                 }
                 Argument::Help => {
                     print_help();
@@ -232,21 +234,6 @@ fn main() {
             }
         }
     }
-
-    if output_file_path.is_none() {
-        output_file_path = Some(input_file.to_str().expect("failed in converting file path to string").replace(".rock", ""))
-    }
-
-    let ofp_unwrapped = output_file_path.unwrap();
-
-    output_file = Path::new(&ofp_unwrapped);
-    // create the output file if it doesn't exist
-    // if let Err(e) = File::create(output_file) {
-    //     println!("{}An error occured trying to create the output binary file: {}", Color::Red, e);
-    //     flush_styles();
-    //     return;
-    // }
-
 
     let code = read_file(&input_file);
 
@@ -292,10 +279,24 @@ fn main() {
         println!("Generating code...");
     }
 
-    let (res, compile_time) = time_taken(|| generate_c_code(format!("output.c"), &mut ast.as_mut().unwrap()));
+    let (res, compile_time) = time_taken(|| generate_c_code(&mut ast.as_mut().unwrap()));
 
     if res.is_err() {
         println!("{}", res.unwrap_err());
+        return;
+    }
+
+    let mut output_file = OpenOptions::new()
+        .write(true)
+        .append(false)
+        .create(true)
+        .open(output_file_path)
+        .expect("Failed to open output file for writing.");
+
+    let write_result = output_file.write_all(res.unwrap().as_bytes());
+
+    if write_result.is_err() {
+        println!("{}Failed to write to output file: {}", Color::Red, write_result.unwrap_err());
         return;
     }
 
