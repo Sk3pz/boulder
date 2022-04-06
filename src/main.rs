@@ -121,7 +121,7 @@ pub fn validate_boulder_file<S: Into<String>>(file: S) -> Result<(), String> {
 fn print_help() {
     println!(
         "{}Boulder Help:\n\
-        {}boulder {ob}[{o}input_file{ob}] {ob}[{o}mode{ob}] [{o}options{ob}]\n\
+        {}boulder {ob}[{o}mode{ob}] {ob}[{o}input_file{ob}] [{o}options{ob}]\n\
         {t}{}Modes:\n\
         {t}{c}int{ob}, {c}interpret    {c2}Interpretation mode\n\
         {t}{c}cmp{ob}, {c}compile      {c2}Compilation mode\n\
@@ -180,11 +180,12 @@ fn main() {
         return;
     }
 
-    // get the input file
-    let input_file_in = &args.get(0).unwrap().clone();
+    // get the mode defined
+    let mode_in = &args.get(0).unwrap().clone();
     args.remove(0);
 
-    let mode_in = &args.get(0).unwrap().clone();
+    // get the input file
+    let input_file_in = &args.get(0).unwrap().clone();
     args.remove(0);
 
     // make sure its not a help command or a version command, and if it is, print the help or version
