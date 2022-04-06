@@ -11,9 +11,9 @@ fn test(s: int) -> int {
     return x + y * odd_test(s) + 1 // 5 * (5 * s) + 1
 }
 
-fn main() -> int {
+fn start() -> int {
     // this call to printf is a c function that directly translates,
     // but it wont work for other compiler targets or the interpreter.
     printf("%d\n", test(0 + 1))
-    return (++5 + 3) * (8 - 2++)
+    return (5 + 3) * (8 - 2)
 }

@@ -1,4 +1,4 @@
-#![feature(format_args_capture)]
+#![feature(core_intrinsics)]
 
 mod argument_parser;
 pub mod input_reader;
@@ -22,6 +22,7 @@ use crate::argument_parser::{Argument, parse_args};
 use crate::error::{Error, print_error};
 use crate::gen_c::generate_c_code;
 use crate::input_reader::InputReader;
+use crate::interpreter::interpret;
 use crate::lexer::lex;
 use crate::parser::parse;
 use crate::token::TokenList;
@@ -120,7 +121,11 @@ pub fn validate_boulder_file<S: Into<String>>(file: S) -> Result<(), String> {
 fn print_help() {
     println!(
         "{}Boulder Help:\n\
-        {}boulder {ob}[{o}input_file{ob}] [{o}options{ob}]\n\
+        {}boulder {ob}[{o}input_file{ob}] {ob}[{o}mode{ob}] [{o}options{ob}]\n\
+        {t}{}Modes:\n\
+        {t}{c}int{ob}, {c}interpret    {c2}Interpretation mode\n\
+        {t}{c}cmp{ob}, {c}compile      {c2}Compilation mode\n\
+        {t}Defaults to interpret\n\
         {t}{}Options:\n\
         {t}{c}-h{ob}, {c}--help    {c2}Print this help message\n\
         {t}{c}-v{ob}, {c}--version {c2}Print the version of boulder\n\
@@ -168,8 +173,18 @@ fn main() {
         return;
     }
 
+    if args.len() < 2 {
+        println!("{}No mode found!", Color::Red);
+        flush_styles();
+        print_help();
+        return;
+    }
+
     // get the input file
     let input_file_in = &args.get(0).unwrap().clone();
+    args.remove(0);
+
+    let mode_in = &args.get(0).unwrap().clone();
     args.remove(0);
 
     // make sure its not a help command or a version command, and if it is, print the help or version
@@ -193,8 +208,22 @@ fn main() {
         }
     }
 
+
+    // get the compiler mode
+    let mode = match mode_in.as_str() {
+        "int" | "interpret" => 0,
+        "cmp" | "compile" => 1,
+        _ => {
+            println!("{}Invalid mode! Can either be cmp or int!", Color::Red);
+            flush_styles();
+            print_help();
+            return;
+        }
+    };
+
     // the output file
-    let mut output_file_path = input_file.to_str().expect("failed in converting file path to string").replace(".rock", "");
+    let mut output_file_path = input_file.to_str().expect("failed in converting file path to string")
+        .replace(".rock", "");
 
     if !args.is_empty() {
         let arguments = parse_args(&args);
@@ -241,8 +270,10 @@ fn main() {
         println!("Lexing the code...");
     }
 
+    // handle reading the input
     let mut input_reader = InputReader::new(Some(input_file_in.clone()), &code);
 
+    // tokenize the input through the lexer
     let (mut tokens, lex_time) = time_taken(|| lex(&mut input_reader));
     if tokens.is_err() {
         print_error(tokens.unwrap_err());
@@ -260,6 +291,7 @@ fn main() {
         println!("Parsing tokens...");
     }
 
+    // parse the tokens into an AST
     let (mut ast, parse_time) = time_taken(|| parse(&mut tokens.as_mut().unwrap()));
     if ast.is_err() {
         print_error(ast.unwrap_err());
@@ -279,34 +311,58 @@ fn main() {
         println!("Generating code...");
     }
 
-    let (res, compile_time) = time_taken(|| generate_c_code(&mut ast.as_mut().unwrap()));
+    if mode == 0 { // interpretation mode
+        // interpret the ast
+        let (res, interpret_time) = time_taken(|| interpret(&mut ast.as_mut().unwrap()));
 
-    if res.is_err() {
-        println!("{}", res.unwrap_err());
-        return;
-    }
+        if res.is_err() {
+            println!("{}", res.unwrap_err());
+            return;
+        }
 
-    let mut output_file = OpenOptions::new()
-        .write(true)
-        .append(false)
-        .create(true)
-        .open(output_file_path)
-        .expect("Failed to open output file for writing.");
+        if verbose {
+            let parse_display_time = if interpret_time > 500.0 {
+                format!("{}s", round(interpret_time / 1000.0, 3))
+            } else {
+                format!("{}ms", interpret_time)
+            };
+            println!("Ran the code. Took {}.", parse_display_time);
+        }
 
-    let write_result = output_file.write_all(res.unwrap().as_bytes());
+    } else { // compilation mode
 
-    if write_result.is_err() {
-        println!("{}Failed to write to output file: {}", Color::Red, write_result.unwrap_err());
-        return;
-    }
+        // compile to a string
+        let (res, compile_time) = time_taken(|| generate_c_code(&mut ast.as_mut().unwrap()));
 
-    if verbose {
-        let parse_display_time = if compile_time > 500.0 {
-            format!("{}s", round(compile_time / 1000.0, 3))
-        } else {
-            format!("{}ms", compile_time)
-        };
-        println!("Generated code. Took {}.", parse_display_time);
+        // writing the string to a file
+
+        if res.is_err() {
+            println!("{}", res.unwrap_err());
+            return;
+        }
+
+        let mut output_file = OpenOptions::new()
+            .write(true)
+            .append(false)
+            .create(true)
+            .open(output_file_path)
+            .expect("Failed to open output file for writing.");
+
+        let write_result = output_file.write_all(res.unwrap().as_bytes());
+
+        if write_result.is_err() {
+            println!("{}Failed to write to output file: {}", Color::Red, write_result.unwrap_err());
+            return;
+        }
+
+        if verbose {
+            let parse_display_time = if compile_time > 500.0 {
+                format!("{}s", round(compile_time / 1000.0, 3))
+            } else {
+                format!("{}ms", compile_time)
+            };
+            println!("Generated code. Took {}.", parse_display_time);
+        }
     }
 
     flush_styles();

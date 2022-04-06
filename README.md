@@ -17,12 +17,28 @@ Boulder uses the `.rock` extension for files
 Syntax example of Boulder (currently using rust syntax because of the similarity for syntax highlighting): 
 ```rust
 use "print.rock"
+// it will be possible to overwrite the default write stream with a custom one in the future.
 
-macro BINARY_NUMBER_FAIL = 0x04
+// an example of parameters and defaults
+fn fn_test(param1: u8 = 0, param2: bool = true) -> int {
+    if param1 == 0 {
+        if param2 {
+            return 1
+        } else {
+            return 2
+        }
+    } else {
+        if param2 {
+            return 3
+        } else {
+            return 4
+        }
+    }
+}
 
 fn start() {
     println("This will print out on any supported OS!")
-    // call a system interrupt (This isnt meant do do anything specific, just an example of syntax and features.)
+    // call a system interrupt (This isn't meant do do anything specific, just an example of syntax and features.)
     @0x00
     if true {
         @0x01
@@ -42,7 +58,7 @@ fn start() {
         //  if printing is possible, print to the screen,
         //  Attempt to return it.
         // the panic function will take anything as a parameter.
-        ? BINARY_NUMBER_FAIL
+        ? "Binary numbers are not working!"
     }
 
 }

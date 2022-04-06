@@ -1,8 +1,6 @@
 use std::fmt::Display;
 use cli_tree::TreeNode;
 
-
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Operator {
     Add,       // +   (binary)         0

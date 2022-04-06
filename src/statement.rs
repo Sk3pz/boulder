@@ -1,5 +1,4 @@
 use std::fmt::{Display, format, Formatter};
-use std::os::macos::raw::stat;
 use cli_tree::TreeNode;
 use crate::operator::Operator;
 

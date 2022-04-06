@@ -164,6 +164,7 @@ impl Statement {
                     } else {
                         let op = ssi.get_operator().unwrap();
                         if op.precedence().is_none() {
+                            // todo(eric): handle '++' and '--'
                             return Err(CompilerError::new(format!("Expected expression operator but found invalid operator `{}`.",
                                         op)));
                         }
