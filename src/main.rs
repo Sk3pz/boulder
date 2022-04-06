@@ -309,10 +309,12 @@ fn main() {
         // println!("AST:\n{}", ast.unwrap());
         let tree_node: TreeNode = ast.as_mut().unwrap().as_treenode();
         println!("{}", tree_node);
-        println!("Generating code...");
     }
 
     if mode == 0 { // interpretation mode
+        if verbose {
+            println!("Interpreting code...");
+        }
         // interpret the ast
         let (res, interpret_time) = time_taken(|| interpret(&mut ast.as_mut().unwrap()));
 
@@ -331,7 +333,9 @@ fn main() {
         }
 
     } else { // compilation mode
-
+        if verbose {
+            println!("Generating code...");
+        }
         // compile to a string
         let (res, compile_time) = time_taken(|| generate_c_code(&mut ast.as_mut().unwrap()));
 

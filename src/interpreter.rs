@@ -60,7 +60,7 @@ pub fn interpret(ast: &Statement) -> Result<(), RuntimeError> {
         return Err(RuntimeError::new("No start() function found! Could not interpret the code!"));
     }
 
-    println!("============\nRUNNING START FUNCTION\n============");
+    println!("RUNNING START FUNCTION");
 
 
 
